@@ -564,8 +564,8 @@ const pdfBlob = await generateQuotationPDF({
                   </PopoverContent>
                 </Popover>
               </CardHeader>
-              <CardContent className="p-0 overflow-x-auto">
-                <div className="min-w-[800px]">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-gray-50 hover:bg-transparent">
