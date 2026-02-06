@@ -94,8 +94,8 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Configure your company profile and invoice defaults.</p>
       </div>
 
-      <form onSubmit={handleSave} className="grid gap-8 md:grid-cols-2">
-        <div className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
+      <form onSubmit={handleSave} className="grid gap-6 md:gap-8 md:grid-cols-2">
+        <div className="space-y-6 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Company Information</h2>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -173,7 +173,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
+          <div className="space-y-6 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Quotation Defaults</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -204,7 +204,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
+          <div className="space-y-6 rounded-xl border bg-white p-4 md:p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Signature Details</h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
