@@ -278,16 +278,17 @@ export default function UsersPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border-none bg-white shadow-sm ring-1 ring-gray-100">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-gray-50 hover:bg-transparent">
-              <TableHead className="h-14 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">User</TableHead>
-              <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Role</TableHead>
-              <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Status</TableHead>
-              <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Joined</TableHead>
-              <TableHead className="h-14 px-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-gray-50 hover:bg-transparent">
+                <TableHead className="h-14 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">User</TableHead>
+                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">Role</TableHead>
+                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">Status</TableHead>
+                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">Joined</TableHead>
+                <TableHead className="h-14 px-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
@@ -383,6 +384,7 @@ export default function UsersPage() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Edit Dialog */}
