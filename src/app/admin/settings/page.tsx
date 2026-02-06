@@ -56,18 +56,29 @@ export default function SettingsPage() {
 
     try {
       const fileExt = file.name.split(".").pop()
-      const fileName = `logo-${Math.random()}.${fileExt}`
+      const fileName = `logo.${fileExt}`
+      const filePath = `company-logos/${fileName}`
+      
       const { error: uploadError } = await supabase.storage
         .from("logos")
-        .upload(fileName, file)
+        .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
       const { data: { publicUrl } } = supabase.storage
         .from("logos")
-        .getPublicUrl(fileName)
+        .getPublicUrl(filePath)
 
-      setSettings({ ...settings, logo_url: publicUrl })
+      setSettings({ ...settings, company_logo: publicUrl })
+      
+      // Save immediately to database
+      const { error: updateError } = await supabase
+        .from("settings")
+        .update({ company_logo: publicUrl })
+        .eq("id", 1)
+      
+      if (updateError) throw updateError
+      
       toast.success("Logo uploaded successfully")
     } catch (err: any) {
       toast.error(err.message)
