@@ -66,6 +66,7 @@ interface Product {
   addons?: { name: string; price: number; active?: boolean }[]
   specs?: { key: string; value: string }[]
   category?: string
+  image_format?: 'wide' | 'tall'
 }
 
 interface QuotationItem {
@@ -79,6 +80,7 @@ interface QuotationItem {
   sku: string
   selectedAddons?: { name: string; price: number }[]
   specs?: { key: string; value: string }[]
+  image_format?: 'wide' | 'tall'
 }
 
 interface Term {
@@ -182,7 +184,8 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
       sku: product.sku,
       // Add all addons by default as requested
       selectedAddons: product.addons ? product.addons.map(a => ({ name: a.name, price: a.price })) : [],
-      specs: product.specs || []
+      specs: product.specs || [],
+      image_format: product.image_format || 'wide'
     }
     setItems(prev => [...prev, newItem])
     setIsProductOpen(false)
