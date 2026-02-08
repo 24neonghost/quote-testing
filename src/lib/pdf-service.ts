@@ -102,18 +102,52 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
   await Promise.all(imagePromises)
 
   // Start Drawing
+  let pageNumber = 1
   drawPageBorder()
   drawHeader(logoBase64)
+  drawPageNumber(pageNumber)
 
-  let currentY = 45
+  let currentY = 47
   let isFirstPage = true
 
   items.forEach((item, index) => {
     if (index > 0) {
       doc.addPage()
+      pageNumber++
       drawPageBorder()
       drawHeader(logoBase64)
-      currentY = 45
+      drawPageNumber(pageNumber)
+      currentY = 47
+    }
+
+    // "To" block - ONLY on first page, FIRST thing after header
+    if (isFirstPage) {
+      autoTable(doc, {
+        startY: currentY,
+        body: [[
+          { content: `To\n\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`, styles: { fontStyle: "bold", fontSize: 10, valign: "top" } },
+          { content: `Quote No\n${quotation.quotation_number}\n\nDate\n${new Date(quotation.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')}\n\nValidity\n${(() => {
+            const validityDate = new Date(quotation.created_at || Date.now())
+            validityDate.setDate(validityDate.getDate() + 30)
+            return validityDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')
+          })()}`, styles: { fontSize: 10, valign: "top" } }
+        ]],
+        theme: "grid",
+        bodyStyles: {
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+          cellPadding: 4,
+          valign: "top"
+        },
+        columnStyles: {
+          0: { cellWidth: 105, halign: "left" },
+          1: { cellWidth: 60, halign: "left" }
+        },
+        margin: { left: margin, right: margin }
+      })
+      currentY = (doc as any).lastAutoTable.finalY + 10
+      isFirstPage = false
     }
 
     // Technical & Commercial Offer Title
