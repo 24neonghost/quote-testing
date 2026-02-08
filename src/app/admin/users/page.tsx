@@ -81,16 +81,25 @@ export default function UsersPage() {
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
+      
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `HTTP ${res.status}`)
+      }
+      
       const data = await res.json()
       if (data.error) throw new Error(data.error)
+      
       toast.success("User created successfully")
       setIsCreateOpen(false)
       fetchUsers()
       setFormData({ name: "", email: "", password: "", role: "sales", phone: "" })
     } catch (err: any) {
-      toast.error(err.message)
+      console.error("Create user error:", err)
+      toast.error(err.message || "Failed to create user")
     }
   }
 
