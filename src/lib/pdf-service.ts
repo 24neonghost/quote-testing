@@ -24,6 +24,9 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
   const currencySymbol = currency === 'INR' ? '₹' : '$'
   const currencyLabel = currency === 'INR' ? 'INR' : 'USD'
 
+  // Calculate total pages
+  let totalPages = items.length + 1 // items + terms page
+
   const drawPageBorder = () => {
     // Outer Blue Border
     doc.setDrawColor(0, 82, 156)
@@ -38,39 +41,46 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     // Footer contact box
     doc.setDrawColor(0, 0, 0)
     doc.setLineWidth(0.3)
-    doc.rect(margin + 10, pageHeight - 15, pageWidth - (margin * 2) - 20, 8)
+    doc.rect(margin + 10, pageHeight - 20, pageWidth - (margin * 2) - 20, 8)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7)
     doc.setTextColor(0)
-    doc.text("Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365", pageWidth / 2, pageHeight - 9.5, { align: "center" })
+    doc.text("Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365", pageWidth / 2, pageHeight - 14.5, { align: "center" })
+  }
+
+  const drawPageNumber = (pageNum: number) => {
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(0)
+    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" })
   }
 
   const drawHeader = (logoBase64: string) => {
-    // Logo on top-left
+    // Logo on top-left with increased height
     if (logoBase64) {
-      doc.addImage(logoBase64, "PNG", margin, 12, 50, 18)
+      doc.addImage(logoBase64, "JPEG", margin, 10, 60, 22)
     }
 
     // Address on top-right
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
     doc.setTextColor(0)
     const address = "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040"
     const splitAddress = doc.splitTextToSize(address, 70)
-    doc.text(splitAddress, pageWidth - margin, 14, { align: "right" })
+    doc.text(splitAddress, pageWidth - margin, 12, { align: "right" })
 
     doc.setDrawColor(0, 82, 156)
     doc.setLineWidth(0.5)
-    doc.line(margin, 35, pageWidth - margin, 35)
+    doc.line(margin, 38, pageWidth - margin, 38)
     doc.setDrawColor(255, 102, 0)
     doc.setLineWidth(0.3)
-    doc.line(margin, 36, pageWidth - margin, 36)
+    doc.line(margin, 39, pageWidth - margin, 39)
   }
 
-  // Pre-load quotation logo (fixed path)
+  // Pre-load quotation logo (use JPG)
   let logoBase64 = ""
   try {
-    logoBase64 = await getBase64ImageFromURL('/quotation-logo.png')
+    logoBase64 = await getBase64ImageFromURL('/quotation-logo.jpg')
   } catch (e) {
     console.warn("Could not load quotation logo", e)
   }
@@ -108,10 +118,10 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
 
     // Technical & Commercial Offer Title
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(11)
+    doc.setFontSize(12)
     doc.text("Technical & Commercial Offer", pageWidth / 2, currentY, { align: "center" })
-    currentY += 6
-    doc.setFontSize(10)
+    currentY += 7
+    doc.setFontSize(11)
     doc.text(`For ${item.name}`, pageWidth / 2, currentY, { align: "center" })
     currentY += 10
 
@@ -312,23 +322,25 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     currentY = (doc as any).lastAutoTable.finalY + 10
   })
 
-  // Second Page: Terms & Conditions
+  // Terms & Conditions Page
   doc.addPage()
+  pageNumber++
   drawPageBorder()
   drawHeader(logoBase64)
+  drawPageNumber(pageNumber)
 
-  currentY = 45
+  currentY = 47
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(11)
+  doc.setFontSize(12)
   doc.text("Terms And Conditions:", margin, currentY)
-  currentY += 8
+  currentY += 10
 
-  doc.setFontSize(9)
+  doc.setFontSize(10)
   doc.text("HSN CODE", margin, currentY)
-  currentY += 4
+  currentY += 5
   doc.setFont("helvetica", "normal")
   doc.text("84799031", margin + 5, currentY)
-  currentY += 8
+  currentY += 10
 
   const termsToDisplay = selectedTerms && selectedTerms.length > 0 ? selectedTerms : [
     { title: "1. Taxes", text: "18% GST extra applicable" },
@@ -342,13 +354,13 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     { title: "9. MODIFICATION", text: "Any modification of these Terms and Conditions shall be valid only if it is in writing and signed by the authorized representatives of both Supplier and Customer." }
   ]
 
-  termsToDisplay.forEach((t, idx) => {
+  termsToDisplay.forEach((t) => {
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
+    doc.setFontSize(9)
     const fullText = `${t.title}: ${t.text}`
     const splitT = doc.splitTextToSize(fullText, pageWidth - (margin * 2))
     doc.text(splitT, margin, currentY)
-    currentY += (splitT.length * 4) + 2
+    currentY += (splitT.length * 4.5) + 3
   })
 
   currentY += 10
