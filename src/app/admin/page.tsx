@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  FileText, 
-  Package, 
-  Users, 
-  TrendingUp, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  DollarSign, 
+import {
+  FileText,
+  Package,
+  Users,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  DollarSign,
   Clock,
   ChevronRight,
   ShoppingCart
@@ -15,7 +15,8 @@ import {
 import Link from "next/link"
 import AdminCharts from "./AdminCharts"
 
-export const revalidate = 60 // Revalidate every 60 seconds for performance
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
@@ -58,7 +59,7 @@ export default async function AdminDashboard() {
   // Calculate stats
   const totalRevenue = quotations?.reduce((acc, q) => acc + (q.grand_total || 0), 0) || 0
   const avgQuotationValue = quotations?.length ? totalRevenue / quotations.length : 0
-  
+
   // Last 30 days revenue (simple mock for now, but could be calculated)
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -140,7 +141,7 @@ export default async function AdminDashboard() {
           </Card>
         ))}
       </div>
-      
+
       {/* Analytics Graphs */}
       <AdminCharts salesData={salesData} performanceData={performanceData} />
 

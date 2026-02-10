@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import QuotationsList from '@/components/quotation/QuotationsList'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function SalesQuotationsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,12 +19,12 @@ export default async function SalesQuotationsPage() {
     .eq('id', user.id)
     .single()
 
-    return (
-      <div className="min-h-screen bg-gray-50/50">
-        <div className="mx-auto max-w-6xl p-8">
-          <QuotationsList user={profile} userId={user.id} />
-        </div>
+  return (
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="mx-auto max-w-6xl p-8">
+        <QuotationsList user={profile} userId={user.id} />
       </div>
-    )
+    </div>
+  )
 
 }
