@@ -732,7 +732,7 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">₹</span>
                                 <Input
                                   type="number"
-                                  className="h-10 w-full rounded-xl border-gray-100 bg-gray-50/50 pl-6 pr-2 font-bold focus:bg-white"
+                                  className="h-10 w-[140px] min-w-[140px] rounded-xl border-gray-100 bg-gray-50/50 pl-6 pr-2 font-bold focus:bg-white"
                                   value={item.price}
                                   onChange={(e) => updateItem(item.id, { price: parseFloat(e.target.value) || 0 })}
                                 />
@@ -799,7 +799,7 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">₹</span>
                                 <Input
                                   type="number"
-                                  className="h-10 w-full rounded-xl border-gray-100 bg-gray-50/50 pl-6 pr-2 font-bold focus:bg-white"
+                                  className="h-10 w-[140px] min-w-[140px] rounded-xl border-gray-100 bg-gray-50/50 pl-6 pr-2 font-bold focus:bg-white"
                                   value={item.price}
                                   onChange={(e) => updateItem(item.id, { price: parseFloat(e.target.value) || 0 })}
                                 />
