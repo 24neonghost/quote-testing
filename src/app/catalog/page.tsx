@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge'
 
 export default async function CatalogPage() {
   const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (error || !user) {
     redirect('/auth/login')
   }
 

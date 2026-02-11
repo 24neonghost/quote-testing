@@ -1,5 +1,7 @@
 "use client"
 
+import { createClient } from "@/lib/supabase/client"
+
 import { useEffect, useState } from "react"
 import { Plus, Search, Key, Power, PowerOff, Edit2, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
@@ -60,7 +62,14 @@ export default function UsersPage() {
   })
 
   useEffect(() => {
-    fetchUsers()
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        fetchUsers()
+      }
+    }
+    checkAuth()
   }, [])
 
   const fetchUsers = async () => {

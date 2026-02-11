@@ -83,14 +83,14 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
   }
 
   // Pre-load item images in parallel with optimized caching
-  const itemImages: Record<string, { base64: string; isWide: boolean }> = {}
+  const itemImages: Record<string, { base64: string; isWide: boolean; width: number; height: number }> = {}
   const imagePromises = items
     .filter(item => item.image_url)
     .map(async (item) => {
       try {
         const { base64, width, height } = await getBase64ImageWithDimensions(item.image_url!)
         const isWide = width > height * 1.3 // Consider wide if aspect ratio > 1.3
-        itemImages[item.id] = { base64, isWide }
+        itemImages[item.id] = { base64, isWide, width, height }
       } catch (e) {
         console.warn(`Could not load item image for ${item.id}`, e)
       }
@@ -130,8 +130,13 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     // "To" block - ONLY on first page, FIRST thing after header
     if (isFirstPage) {
       // Calculate validity date
-      const validityDate = new Date(quotation.created_at || Date.now())
-      validityDate.setDate(validityDate.getDate() + (quotation.validity_days || 30))
+      let validityDate: Date
+      if (quotation.validity_date) {
+        validityDate = new Date(quotation.validity_date)
+      } else {
+        validityDate = new Date(quotation.created_at || Date.now())
+        validityDate.setDate(validityDate.getDate() + (quotation.validity_days || 30))
+      }
 
       const toAddress = `To\n\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`;
 
@@ -214,10 +219,15 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
       // WIDE FORMAT: Image below description, then features
       if (imageData.base64) {
         // Ensure image fits within page width
-        const imgWidth = pageWidth - (margin * 2) - 10
-        const imgHeight = 65 // Increased height for better visibility
-        doc.addImage(imageData.base64, "PNG", margin + 5, currentY, imgWidth, imgHeight)
-        currentY += imgHeight + 10
+        const maxWidth = pageWidth - (margin * 2) - 10
+        const maxHeight = 80
+
+        const ratio = Math.min(maxWidth / imageData.width, maxHeight / imageData.height)
+        const newWidth = imageData.width * ratio
+        const newHeight = imageData.height * ratio
+
+        doc.addImage(imageData.base64, "PNG", margin + 5, currentY, newWidth, newHeight)
+        currentY += newHeight + 10
       }
 
       // Features list below image
@@ -259,12 +269,19 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
 
       // Tall image on the right
       if (imageData?.base64) {
-        const imgX = margin + featureWidth + 5
-        const imgH = 75 // Increased height for side-by-side
-        doc.addImage(imageData.base64, "JPEG", imgX, featureStartY, imgWidth, imgH)
+        const maxImgWidth = (pageWidth - (margin * 2)) * 0.40
+        const maxImgHeight = 80
+
+        const ratio = Math.min(maxImgWidth / imageData.width, maxImgHeight / imageData.height)
+        const newWidth = imageData.width * ratio
+        const newHeight = imageData.height * ratio
+
+        const imgX = margin + featureWidth + 5 + (maxImgWidth - newWidth) / 2
+
+        doc.addImage(imageData.base64, "JPEG", imgX, featureStartY, newWidth, newHeight)
 
         // Ensure new Y is below the taller of the two (features or image)
-        const imageEndY = featureStartY + imgH + 10
+        const imageEndY = featureStartY + newHeight + 10
         currentY = Math.max(currentY, imageEndY)
       } else {
         currentY += 5
