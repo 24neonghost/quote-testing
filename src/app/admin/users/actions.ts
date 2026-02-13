@@ -20,14 +20,15 @@ export async function createSalesperson(formData: FormData) {
 
     const supabaseAdmin = createAdminClient()
 
-    // Check if profile already exists
-    const { data: existing } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle()
+    // 🔹 Check if auth user already exists
+    const { data: existingAuth } =
+      await supabaseAdmin.auth.admin.listUsers()
 
-    if (existing) {
+    const alreadyExists = existingAuth?.users?.find(
+      (u) => u.email === email
+    )
+
+    if (alreadyExists) {
       return { error: 'A user with this email already exists.' }
     }
 
@@ -53,7 +54,7 @@ export async function createSalesperson(formData: FormData) {
       .from('profiles')
       .insert({
         id: authUser.user.id,
-        full_name: name,   // MUST match your DB column
+        full_name: name,
         email,
         phone,
         role,
@@ -61,6 +62,8 @@ export async function createSalesperson(formData: FormData) {
       })
 
     if (profileError) {
+      // Cleanup auth user if profile creation fails
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
       return { error: profileError.message }
     }
 
@@ -133,7 +136,15 @@ export async function deleteUser(userId: string) {
   try {
     const supabaseAdmin = createAdminClient()
 
-    // 1. Delete profile first
+    // 🔹 Delete auth user first
+    const { error: authError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+
+    if (authError) {
+      return { error: authError.message }
+    }
+
+    // 🔹 Then delete profile
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()
@@ -141,14 +152,6 @@ export async function deleteUser(userId: string) {
 
     if (profileError) {
       return { error: profileError.message }
-    }
-
-    // 2. Delete auth user
-    const { error: authError } =
-      await supabaseAdmin.auth.admin.deleteUser(userId)
-
-    if (authError) {
-      return { error: authError.message }
     }
 
     revalidatePath('/admin/users')
