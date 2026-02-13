@@ -25,31 +25,43 @@ interface Quotation {
   pdf_url: string | null
   profiles: {
     full_name: string
-    email: string
   }
 }
 
-export default function QuotationsList({
-  user,
-  userId,
-}: {
-  user: any
-  userId?: string
-}) {
+export default function QuotationsList({ user }: { user: any }) {
+  const supabase = createClient()
+
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState("")
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchQuotations()
-  }, [userId])
+  }, [])
 
   const fetchQuotations = async () => {
     setLoading(true)
+
     try {
+      let profileId: string | null = null
+
+      if (user?.role !== "admin") {
+        // 🔥 Step 1: Get profile ID using full name
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("full_name", user.full_name)
+          .single()
+
+        if (profileError || !profile) {
+          throw new Error("Profile not found")
+        }
+
+        profileId = profile.id
+      }
+
+      // 🔥 Step 2: Fetch quotations
       let query = supabase
         .from("quotations")
         .select(`
@@ -59,23 +71,19 @@ export default function QuotationsList({
           grand_total,
           created_at,
           pdf_url,
-          profiles!created_by (full_name, email)
+          profiles!created_by (full_name)
         `)
+        .order("created_at", { ascending: false })
 
-      // 🔁 ONLY CHANGE: filter by email instead of created_by
-      if (user?.role !== "admin") {
-        if (user?.email) {
-          query = query.eq("profiles.email", user.email)
-        }
+      if (profileId) {
+        query = query.eq("created_by", profileId)
       }
 
-      const { data, error } = await query.order("created_at", {
-        ascending: false,
-      })
+      const { data, error } = await query
 
       if (error) throw error
 
-      setQuotations(data as any)
+      setQuotations(data || [])
     } catch (error: any) {
       toast.error(error.message)
     } finally {
@@ -112,13 +120,9 @@ export default function QuotationsList({
                 ? "All Quotations"
                 : "My Quotations"}
             </h1>
-            <p className="text-sm font-medium text-gray-400">
-              {user?.role === "admin"
-                ? "Monitor all team quotations."
-                : "Track your generated quotations."}
-            </p>
           </div>
         </div>
+
         <Button
           variant="outline"
           size="sm"
@@ -136,109 +140,57 @@ export default function QuotationsList({
       <div className="relative flex-1">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <Input
-          placeholder="Search by customer or quotation number..."
-          className="h-12 rounded-xl border-none bg-white pl-11 shadow-sm ring-1 ring-gray-100 focus:ring-black transition-all"
+          placeholder="Search..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border-none bg-white shadow-sm ring-1 ring-gray-100">
-        <div className="min-w-[800px]">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-gray-50 hover:bg-transparent">
-                <TableHead className="h-14 px-8 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Number
-                </TableHead>
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Customer
-                </TableHead>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Number</TableHead>
+            <TableHead>Customer</TableHead>
+            {user?.role === "admin" && <TableHead>Salesperson</TableHead>}
+            <TableHead>Amount</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6}>Loading...</TableCell>
+            </TableRow>
+          ) : filteredQuotations.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6}>No quotations found.</TableCell>
+            </TableRow>
+          ) : (
+            filteredQuotations.map((q) => (
+              <TableRow key={q.id}>
+                <TableCell>{q.quotation_number}</TableCell>
+                <TableCell>{q.customer_name}</TableCell>
                 {user?.role === "admin" && (
-                  <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                    Salesperson
-                  </TableHead>
+                  <TableCell>{q.profiles?.full_name}</TableCell>
                 )}
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Amount
-                </TableHead>
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Date
-                </TableHead>
-                <TableHead className="h-14 px-8 text-right text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Actions
-                </TableHead>
+                <TableCell>₹{q.grand_total?.toLocaleString()}</TableCell>
+                <TableCell>
+                  {new Date(q.created_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  {q.pdf_url && (
+                    <a href={q.pdf_url} target="_blank">
+                      <Download className="h-4 w-4" />
+                    </a>
+                  )}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={user?.role === "admin" ? 6 : 5}
-                    className="h-32 text-center text-sm font-medium text-gray-400"
-                  >
-                    Fetching quotation history...
-                  </TableCell>
-                </TableRow>
-              ) : filteredQuotations.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={user?.role === "admin" ? 6 : 5}
-                    className="h-32 text-center text-sm font-medium text-gray-400"
-                  >
-                    No quotations found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredQuotations.map((q) => (
-                  <TableRow
-                    key={q.id}
-                    className="border-gray-50 group hover:bg-gray-50/50 transition-colors"
-                  >
-                    <TableCell className="px-8 py-5 font-mono text-xs font-bold text-black">
-                      {q.quotation_number}
-                    </TableCell>
-                    <TableCell className="font-bold text-black">
-                      {q.customer_name}
-                    </TableCell>
-                    {user?.role === "admin" && (
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[8px] font-black text-black">
-                            {q.profiles?.full_name?.[0] || "S"}
-                          </div>
-                          <span className="text-xs font-bold text-gray-600">
-                            {q.profiles?.full_name}
-                          </span>
-                        </div>
-                      </TableCell>
-                    )}
-                    <TableCell className="font-black text-black">
-                      ₹{q.grand_total?.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-xs font-bold text-gray-400 uppercase tracking-tighter">
-                      {new Date(q.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="px-8 text-right">
-                      {q.pdf_url && (
-                        <a
-                          href={q.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex h-9 items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 text-xs font-bold text-black shadow-sm transition-all hover:bg-gray-50 active:scale-95"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          View PDF
-                        </a>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }
