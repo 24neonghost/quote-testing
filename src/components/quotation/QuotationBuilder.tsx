@@ -100,6 +100,7 @@ interface QuotationBuilderProps {
 type Currency = 'INR' | 'USD'
 
 const DEFAULT_TERMS = [
+  "Taxes: 18% GST extra applicable",
   "Packaging & Forwarding: Extra As Applicable",
   "Fright: To Pay / Extra as applicable",
   "DELIVERY: We deliver the order in 3-4 Weeks from the date of receipt of purchase order",
