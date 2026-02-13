@@ -55,8 +55,11 @@ export default function QuotationsList({ user, userId }: { user: any, userId?: s
           profiles!created_by (full_name)
         `)
 
-      // RLS Policy handles filtering automatically
-      // if (user?.role !== 'admin') { ... } removed
+      // Restrict sales users to see only their own quotations
+      // Admin sees all quotations
+      if (user?.role !== 'admin' && userId) {
+        query = query.eq('created_by', userId)
+      }
 
       const { data, error } = await query.order("created_at", { ascending: false })
 
