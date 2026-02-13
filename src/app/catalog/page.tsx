@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
-import { Search, Package } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Package, ArrowLeft } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Button } from "@/components/ui/button"
 
 export const revalidate = 0
 
@@ -37,16 +37,23 @@ export default async function CatalogPage() {
     <div className="min-h-screen bg-gray-50/50 p-8">
       <div className="mx-auto max-w-6xl space-y-8">
 
-        {/* 🔹 Back Button */}
-        <BackButton />
+        {/* ✅ SAME STYLE BACK BUTTON */}
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-100 bg-white text-gray-400 hover:text-black hover:shadow-sm transition-all"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
 
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-black">
-            Product Catalog
-          </h1>
-          <p className="text-sm font-medium text-gray-400">
-            View detailed pharmaceutical engineering specifications.
-          </p>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-black">
+              Product Catalog
+            </h1>
+            <p className="text-sm font-medium text-gray-400">
+              View detailed pharmaceutical engineering specifications.
+            </p>
+          </div>
         </div>
 
         <div className="relative">
