@@ -74,10 +74,14 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("/api/admin/users", { credentials: "include" })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setUsers(data)
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name:full_name, email, role, active, created_at, phone')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setUsers(data as Profile[])
     } catch (err: any) {
       toast.error(err.message)
     } finally {
@@ -88,11 +92,16 @@ export default function UsersPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify(formData),
-        credentials: "include",
       })
 
       if (!res.ok) {
@@ -116,16 +125,21 @@ export default function UsersPage() {
     e.preventDefault()
     if (!selectedUser) return
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify({
           id: selectedUser.id,
           name: formData.name,
           role: formData.role,
           phone: formData.phone
         }),
-        credentials: "include",
       })
 
       if (!res.ok) {
@@ -146,11 +160,16 @@ export default function UsersPage() {
 
   const handleToggleStatus = async (user: Profile) => {
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify({ id: user.id, active: !user.active }),
-        credentials: "include",
       })
 
       if (!res.ok) {
@@ -170,10 +189,15 @@ export default function UsersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch(`/api/admin/users?id=${id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
       })
 
       if (!res.ok) {
@@ -195,10 +219,15 @@ export default function UsersPage() {
     e.preventDefault()
     if (!selectedUser) return
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify({ id: selectedUser.id, password: formData.password }),
-        credentials: "include",
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
