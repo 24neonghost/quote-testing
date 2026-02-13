@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+'use server'
+
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
@@ -14,57 +15,54 @@ export async function createSalesperson(formData: FormData) {
 
     const supabaseAdmin = createAdminClient()
 
-    // 0. Check if user already exists in profiles to give a clear error
-    const { data: existingProfile } = await supabaseAdmin
+    // Check if already exists
+    const { data: existing } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('email', email)
-      .single()
+      .maybeSingle()
 
-    if (existingProfile) {
-      return { error: 'A user with this email already exists.' }
+    if (existing) {
+      return { error: 'User already exists with this email.' }
     }
 
-    // 1. Create auth user
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { name }
-    })
+    // Create auth user
+    const { data: authUser, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name }
+      })
 
     if (authError) {
-      console.error("Auth Create Error:", authError)
       return { error: authError.message }
     }
 
     if (!authUser?.user) {
-      return { error: 'Failed to create user account.' }
+      return { error: 'Failed to create auth user.' }
     }
 
-    // 2. Create profile
+    // Create profile
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
         id: authUser.user.id,
-        name,
-        email, // Ensure email is saved to profile as well if schema requires it
+        full_name: name,   // IMPORTANT: match your DB column
+        email,
         role: 'sales',
         active: true
       })
 
     if (profileError) {
-      console.error("Profile Create Error:", profileError)
-      // Cleanup auth user if profile creation fails? 
-      // ideally yes, but for now let's just return error.
       return { error: profileError.message }
     }
 
     revalidatePath('/admin/users')
     return { success: true }
+
   } catch (err: any) {
-    console.error("Unexpected Error:", err)
-    return { error: err.message || 'An unexpected error occurred' }
+    return { error: err.message || 'Unexpected error occurred' }
   }
 }
 
@@ -85,9 +83,10 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 export async function resetUserPassword(userId: string, newPassword: string) {
   const supabaseAdmin = createAdminClient()
 
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-    password: newPassword
-  })
+  const { error } =
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: newPassword
+    })
 
   if (error) return { error: error.message }
 
