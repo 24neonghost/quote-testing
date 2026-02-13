@@ -14,9 +14,7 @@ export default async function CatalogPage() {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
-    redirect('/auth/login')
-  }
+
 
   let products: any[] = []
 
