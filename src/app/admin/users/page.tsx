@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
-import { Plus, Search, Key, Power, PowerOff, Trash2 } from "lucide-react"
+import { Plus, Search, Power, PowerOff, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
@@ -49,8 +49,6 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isResetOpen, setIsResetOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -77,7 +75,6 @@ export default function UsersPage() {
     setLoading(false)
   }
 
-  /* ================= CREATE USER ================= */
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
 
@@ -90,14 +87,10 @@ export default function UsersPage() {
         },
       })
 
-    if (authError) {
-      toast.error(authError.message)
-      return
-    }
+    if (authError) return toast.error(authError.message)
 
     if (!authData.user) {
-      toast.error("Failed to create user")
-      return
+      return toast.error("Failed to create user")
     }
 
     const { error: profileError } = await supabase.from("profiles").insert({
@@ -109,17 +102,13 @@ export default function UsersPage() {
       active: true,
     })
 
-    if (profileError) {
-      toast.error(profileError.message)
-      return
-    }
+    if (profileError) return toast.error(profileError.message)
 
     toast.success("User created successfully")
     setIsCreateOpen(false)
     fetchUsers()
   }
 
-  /* ================= TOGGLE STATUS ================= */
   async function handleToggle(user: Profile) {
     const { error } = await supabase
       .from("profiles")
@@ -133,9 +122,8 @@ export default function UsersPage() {
     }
   }
 
-  /* ================= DELETE USER ================= */
   async function handleDelete(user: Profile) {
-    if (!confirm("Are you sure?")) return
+    if (!confirm("Are you sure you want to delete this user?")) return
 
     const { error } = await supabase
       .from("profiles")
@@ -149,22 +137,6 @@ export default function UsersPage() {
     }
   }
 
-  /* ================= RESET PASSWORD ================= */
-  async function handleResetPassword(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedUser) return
-
-    const { error } = await supabase.auth.updateUser({
-      password: formData.password,
-    })
-
-    if (error) toast.error(error.message)
-    else {
-      toast.success("Password updated")
-      setIsResetOpen(false)
-    }
-  }
-
   const filtered = users.filter(
     (u) =>
       u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -172,14 +144,20 @@ export default function UsersPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Users</h1>
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Users</h1>
+          <p className="text-sm text-gray-400">
+            Manage your sales team and administrators.
+          </p>
+        </div>
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <button className="flex items-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-bold text-white">
+            <button className="flex items-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-black/90 active:scale-95">
               <Plus className="h-4 w-4" />
               Add User
             </button>
@@ -187,56 +165,44 @@ export default function UsersPage() {
 
           <DialogContent className="sm:max-w-[520px] rounded-2xl p-8">
             <form onSubmit={handleCreate} className="space-y-6">
+
               <DialogHeader>
-                <DialogTitle>Create User</DialogTitle>
+                <DialogTitle className="text-xl font-black">
+                  Create New User
+                </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-2">
                 <Label>Full Name</Label>
-                <Input
-                  required
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                />
+                <Input required onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                } />
               </div>
 
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input
-                  type="email"
-                  required
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                />
+                <Input type="email" required onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                } />
               </div>
 
               <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  required
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                />
+                <Label>Phone Number</Label>
+                <Input required onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                } />
               </div>
 
               <div className="space-y-2">
                 <Label>Password</Label>
-                <Input
-                  type="password"
-                  required
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                />
+                <Input type="password" required onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                } />
               </div>
 
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select
-                  defaultValue="sales"
+                <Select defaultValue="sales"
                   onValueChange={(v) =>
                     setFormData({ ...formData, role: v })
                   }
@@ -254,69 +220,87 @@ export default function UsersPage() {
               <DialogFooter>
                 <button
                   type="submit"
-                  className="w-full bg-black text-white rounded-xl py-3"
+                  className="w-full rounded-xl bg-black py-3 text-sm font-bold text-white shadow-lg hover:bg-black/90 active:scale-95 transition-all"
                 >
                   Create User
                 </button>
               </DialogFooter>
+
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
       {/* Search */}
-      <Input
-        placeholder="Search..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          placeholder="Search users..."
+          className="pl-9 h-12 rounded-xl"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>User</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {filtered.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>
-                <div className="font-bold">{user.full_name}</div>
-                <div className="text-xs text-gray-400">
-                  {user.email}
-                </div>
-              </TableCell>
-
-              <TableCell>
-                <Badge>{user.role}</Badge>
-              </TableCell>
-
-              <TableCell>
-                {user.active ? "Active" : "Inactive"}
-              </TableCell>
-
-              <TableCell className="flex gap-3">
-                <button onClick={() => handleToggle(user)}>
-                  {user.active ? (
-                    <PowerOff className="h-4 w-4" />
-                  ) : (
-                    <Power className="h-4 w-4" />
-                  )}
-                </button>
-
-                <button onClick={() => handleDelete(user)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </button>
-              </TableCell>
+      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+
+          <TableBody>
+            {filtered.map((user) => (
+              <TableRow key={user.id} className="hover:bg-gray-50 transition-colors">
+                <TableCell>
+                  <div className="font-bold">{user.full_name}</div>
+                  <div className="text-xs text-gray-400">{user.email}</div>
+                </TableCell>
+
+                <TableCell>
+                  <Badge className={
+                    user.role === "admin"
+                      ? "bg-black text-white"
+                      : "bg-gray-100 text-gray-600"
+                  }>
+                    {user.role}
+                  </Badge>
+                </TableCell>
+
+                <TableCell>
+                  <Badge variant={user.active ? "default" : "destructive"}>
+                    {user.active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+
+                <TableCell className="text-right space-x-2">
+                  <button
+                    onClick={() => handleToggle(user)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    {user.active
+                      ? <PowerOff className="h-4 w-4 text-red-500" />
+                      : <Power className="h-4 w-4 text-green-500" />}
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(user)}
+                    className="p-2 rounded-lg hover:bg-red-50 transition"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
     </div>
   )
 }
