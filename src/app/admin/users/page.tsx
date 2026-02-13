@@ -2,7 +2,15 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
-import { Plus, Search, Power, PowerOff, Trash2 } from "lucide-react"
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Power,
+  PowerOff,
+  Trash2,
+  Key,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
@@ -22,6 +30,12 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -49,6 +63,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isResetOpen, setIsResetOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -75,6 +91,7 @@ export default function UsersPage() {
     setLoading(false)
   }
 
+  /* ================= CREATE USER ================= */
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
 
@@ -89,9 +106,7 @@ export default function UsersPage() {
 
     if (authError) return toast.error(authError.message)
 
-    if (!authData.user) {
-      return toast.error("Failed to create user")
-    }
+    if (!authData.user) return toast.error("Failed to create user")
 
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
@@ -109,6 +124,7 @@ export default function UsersPage() {
     fetchUsers()
   }
 
+  /* ================= TOGGLE ================= */
   async function handleToggle(user: Profile) {
     const { error } = await supabase
       .from("profiles")
@@ -122,8 +138,12 @@ export default function UsersPage() {
     }
   }
 
+  /* ================= DELETE ================= */
   async function handleDelete(user: Profile) {
-    if (!confirm("Are you sure you want to delete this user?")) return
+    const confirmDelete = confirm(
+      `Delete ${user.full_name}? This cannot be undone.`
+    )
+    if (!confirmDelete) return
 
     const { error } = await supabase
       .from("profiles")
@@ -134,6 +154,23 @@ export default function UsersPage() {
     else {
       toast.success("User deleted")
       fetchUsers()
+    }
+  }
+
+  /* ================= RESET PASSWORD ================= */
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedUser) return
+
+    const { error } = await supabase.auth.updateUser({
+      password: formData.password,
+    })
+
+    if (error) toast.error(error.message)
+    else {
+      toast.success("Password updated")
+      setIsResetOpen(false)
+      setFormData({ ...formData, password: "" })
     }
   }
 
@@ -157,7 +194,7 @@ export default function UsersPage() {
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <button className="flex items-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-black/90 active:scale-95">
+            <button className="flex items-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-bold text-white shadow-lg hover:bg-black/90 transition-all">
               <Plus className="h-4 w-4" />
               Add User
             </button>
@@ -165,11 +202,8 @@ export default function UsersPage() {
 
           <DialogContent className="sm:max-w-[520px] rounded-2xl p-8">
             <form onSubmit={handleCreate} className="space-y-6">
-
               <DialogHeader>
-                <DialogTitle className="text-xl font-black">
-                  Create New User
-                </DialogTitle>
+                <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-2">
@@ -187,7 +221,7 @@ export default function UsersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Phone Number</Label>
+                <Label>Phone</Label>
                 <Input required onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 } />
@@ -220,12 +254,11 @@ export default function UsersPage() {
               <DialogFooter>
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-black py-3 text-sm font-bold text-white shadow-lg hover:bg-black/90 active:scale-95 transition-all"
+                  className="w-full rounded-xl bg-black py-3 text-white font-bold"
                 >
                   Create User
                 </button>
               </DialogFooter>
-
             </form>
           </DialogContent>
         </Dialog>
@@ -256,7 +289,7 @@ export default function UsersPage() {
 
           <TableBody>
             {filtered.map((user) => (
-              <TableRow key={user.id} className="hover:bg-gray-50 transition-colors">
+              <TableRow key={user.id} className="hover:bg-gray-50 transition">
                 <TableCell>
                   <div className="font-bold">{user.full_name}</div>
                   <div className="text-xs text-gray-400">{user.email}</div>
@@ -278,28 +311,88 @@ export default function UsersPage() {
                   </Badge>
                 </TableCell>
 
-                <TableCell className="text-right space-x-2">
-                  <button
-                    onClick={() => handleToggle(user)}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition"
-                  >
-                    {user.active
-                      ? <PowerOff className="h-4 w-4 text-red-500" />
-                      : <Power className="h-4 w-4 text-green-500" />}
-                  </button>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-2 rounded-lg hover:bg-gray-100 transition">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
 
-                  <button
-                    onClick={() => handleDelete(user)}
-                    className="p-2 rounded-lg hover:bg-red-50 transition"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </button>
+                    <DropdownMenuContent align="end" className="rounded-xl shadow-xl">
+                      <DropdownMenuItem onClick={() => handleToggle(user)}>
+                        {user.active ? (
+                          <>
+                            <PowerOff className="mr-2 h-4 w-4 text-red-500" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <Power className="mr-2 h-4 w-4 text-green-500" />
+                            Activate
+                          </>
+                        )}
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedUser(user)
+                          setIsResetOpen(true)
+                        }}
+                      >
+                        <Key className="mr-2 h-4 w-4" />
+                        Update Password
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(user)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete User
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="rounded-2xl p-8">
+          <form onSubmit={handleResetPassword} className="space-y-6">
+            <DialogHeader>
+              <DialogTitle>
+                Update Password for {selectedUser?.full_name}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+              />
+            </div>
+
+            <DialogFooter>
+              <button
+                type="submit"
+                className="w-full bg-black text-white py-3 rounded-xl font-bold"
+              >
+                Update Password
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )
