@@ -8,9 +8,10 @@ interface PDFData {
   user: any
   selectedTerms?: { title: string; text: string }[]
   currency?: 'INR' | 'USD'
+  validityData?: { validityDate?: string; validityDays?: number }
 }
 
-export const generateQuotationPDF = async ({ quotation, items, settings, user, selectedTerms, currency = 'INR' }: PDFData) => {
+export const generateQuotationPDF = async ({ quotation, items, settings, user, selectedTerms, currency = 'INR', validityData }: PDFData) => {
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -129,10 +130,19 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
 
     // "To" block - ONLY on first page, FIRST thing after header
     if (isFirstPage) {
-      // Use database validity field as requested
-      const validityDate = quotation.validity_date
-        ? new Date(quotation.validity_date)
-        : new Date(quotation.created_at || Date.now()); // Fallback only if null, but DB should have it now
+      // Prioritize passed validityDate, then DB field, then default
+      const validityDate = validityData?.validityDate
+        ? new Date(validityData.validityDate)
+        : (quotation.validity_date
+          ? new Date(quotation.validity_date)
+          : new Date(quotation.created_at || Date.now()));
+
+      // If no valid date found, default to 30 days
+      if (isNaN(validityDate.getTime())) {
+        const d = new Date(quotation.created_at || Date.now())
+        d.setDate(d.getDate() + 30)
+        validityDate.setTime(d.getTime())
+      }
 
       const toAddress = `To\n\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`;
 

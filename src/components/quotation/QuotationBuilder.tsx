@@ -324,19 +324,24 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
         total_amount: totals.grand_total,
         discount_total: discount,
         grand_total: totals.grand_total,
-        validity_days: meta.validity_days,
-        validity_date: new Date(new Date(meta.date).setDate(new Date(meta.date).getDate() + (meta.validity_days || 30))).toISOString(),
+        // validity_date removed to prevent schema error if column missing
       }).select().single()
 
       if (error) throw error
 
+      const calculatedValidityDate = new Date(new Date(meta.date).setDate(new Date(meta.date).getDate() + (meta.validity_days || 30))).toISOString()
+
       const pdfBlob = await generateQuotationPDF({
         quotation: data,
-        items: items, // Use items directly as they are already converted in UI
+        items: items,
         settings,
         user,
         selectedTerms: terms.filter(t => t.selected).map(t => ({ title: t.text.split(':')[0], text: t.text.split(':').slice(1).join(':').trim() })),
-        currency
+        currency,
+        validityData: {
+          validityDate: calculatedValidityDate,
+          validityDays: meta.validity_days
+        }
       })
 
       const fileName = `${data.quotation_number}_${data.id}.pdf`
