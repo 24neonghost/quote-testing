@@ -111,7 +111,9 @@ const DEFAULT_TERMS = [
   "DELIVERY: We deliver the order in 3-4 Weeks from the date of receipt of purchase order",
   "INSTALLATION: Fees extra as applicable",
   "PAYMENT: 100% payment at the time of proforma invoice prior to dispatch.",
-  "WARRANTY: One year warranty from the date of dispatch",
+  "WARRANTY_1: One year warranty from the date of dispatch",
+  "WARRANTY_2: Two years warranty from the date of dispatch",
+  "WARRANTY_3: Three years warranty from the date of dispatch",
   "GOVERNING LAW: These Terms and Conditions and any action related hereto shall be governed, controlled, interpreted and defined by and under the laws of the State of Telangana",
   "MODIFICATION: Any modification of these Terms and Conditions shall be valid only if it is in writing and signed by the authorized representatives of both Supplier and Customer."
 ]
@@ -134,7 +136,11 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
   const [saving, setSaving] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [terms, setTerms] = useState<Term[]>(
-    DEFAULT_TERMS.map((t, i) => ({ id: `term-${i}`, text: t, selected: true }))
+    DEFAULT_TERMS.map((t, i) => ({ 
+      id: `term-${i}`, 
+      text: t, 
+      selected: t.startsWith('WARRANTY_2') || t.startsWith('WARRANTY_3') ? false : true 
+    }))
   )
   const [currency, setCurrency] = useState<Currency>('INR')
 
@@ -266,7 +272,25 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
   }, [])
 
   const toggleTerm = useCallback((termId: string) => {
-    setTerms(terms => terms.map(t => t.id === termId ? { ...t, selected: !t.selected } : t))
+    setTerms(terms => {
+      const clickedTerm = terms.find(t => t.id === termId)
+      
+      // Check if the clicked term is a warranty option
+      const isWarrantyTerm = clickedTerm?.text.startsWith('WARRANTY_')
+      
+      if (isWarrantyTerm) {
+        // If it's a warranty term, deselect all other warranty terms and select this one
+        return terms.map(t => {
+          if (t.text.startsWith('WARRANTY_')) {
+            return { ...t, selected: t.id === termId }
+          }
+          return t
+        })
+      } else {
+        // For non-warranty terms, just toggle normally
+        return terms.map(t => t.id === termId ? { ...t, selected: !t.selected } : t)
+      }
+    })
   }, [])
 
   const clearQuotation = () => {
@@ -297,7 +321,11 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
     }
     triggerRefetch()
     setDiscount(0)
-    setTerms(DEFAULT_TERMS.map((t, i) => ({ id: `term-${i}`, text: t, selected: true })))
+    setTerms(DEFAULT_TERMS.map((t, i) => ({ 
+      id: `term-${i}`, 
+      text: t, 
+      selected: t.startsWith('WARRANTY_2') || t.startsWith('WARRANTY_3') ? false : true 
+    })))
     localStorage.removeItem("quotation_draft")
   }
 
@@ -931,26 +959,45 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-4">
-                  {terms.map((term) => (
-                    <div
-                      key={term.id}
-                      className="flex items-start space-x-3 p-3 rounded-xl hover:bg-gray-50/50 transition-colors group cursor-pointer"
-                      onClick={() => toggleTerm(term.id)}
-                    >
-                      <Checkbox
-                        id={term.id}
-                        checked={term.selected}
-                        onCheckedChange={() => toggleTerm(term.id)}
-                        className="mt-1 data-[state=checked]:bg-black data-[state=checked]:border-black"
-                      />
-                      <Label
-                        htmlFor={term.id}
-                        className="text-sm font-medium leading-relaxed text-gray-600 group-hover:text-black transition-colors cursor-pointer"
-                      >
-                        {term.text}
-                      </Label>
-                    </div>
-                  ))}
+                  {terms.map((term) => {
+                    const isWarrantyTerm = term.text.startsWith('WARRANTY_')
+                    const displayText = term.text.replace(/^WARRANTY_\d+:\s*/, 'WARRANTY: ')
+                    
+                    return (
+                      <div key={term.id}>
+                        {/* Add a warranty group header before the first warranty option */}
+                        {term.text.startsWith('WARRANTY_1') && (
+                          <div className="mb-2">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
+                              Warranty Options (Select One)
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div
+                          className={`flex items-start space-x-3 p-3 rounded-xl hover:bg-gray-50/50 transition-colors group cursor-pointer ${
+                            isWarrantyTerm ? 'ml-4 border-l-2 border-green-500/20' : ''
+                          }`}
+                          onClick={() => toggleTerm(term.id)}
+                        >
+                          <Checkbox
+                            id={term.id}
+                            checked={term.selected}
+                            onCheckedChange={() => toggleTerm(term.id)}
+                            className="mt-1 data-[state=checked]:bg-black data-[state=checked]:border-black"
+                          />
+                          <Label
+                            htmlFor={term.id}
+                            className={`text-sm font-medium leading-relaxed group-hover:text-black transition-colors cursor-pointer ${
+                              isWarrantyTerm ? 'text-gray-700' : 'text-gray-600'
+                            }`}
+                          >
+                            {displayText}
+                          </Label>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
