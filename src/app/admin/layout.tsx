@@ -20,14 +20,15 @@ export default async function AdminLayout({
 
   const user = session.user
 
-  const { data: profile } = await supabase
+  // Get profile with error handling
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single()
 
-  // 🔥 Only redirect if profile exists and role is wrong
-  if (profile && profile.role !== "admin") {
+  // Redirect if profile doesn't exist OR role is not admin
+  if (!profile || profile.role !== "admin") {
     redirect("/")
   }
 
@@ -35,15 +36,18 @@ export default async function AdminLayout({
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-gray-50/50">
         <AdminSidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto md:p-8 lg:pl-64 transition-all duration-300">
-          {/* 📱 MOBILE ONLY: Header with hamburger (hidden on desktop with md:hidden) */}
-          <div className="sticky top-0 z-10 flex items-center gap-2 bg-gray-50/50 px-4 py-3 border-b border-gray-200 md:hidden">
-            <SidebarTrigger className="size-9" />
-            <h1 className="text-lg font-semibold">Raise Labs Admin</h1>
+        <main className="flex-1 min-w-0 overflow-y-auto lg:pl-64 transition-all duration-300">
+          {/* Mobile header with trigger */}
+          <div className="sticky top-0 z-10 flex items-center gap-3 bg-white px-4 py-3 border-b md:hidden">
+            <SidebarTrigger />
+            <span className="font-semibold">Raise Labs Admin</span>
           </div>
           
-          <div className="mx-auto w-full max-w-7xl p-4 md:p-0 pt-16 md:pt-0 lg:pt-0">
-            {children}
+          {/* Content with original padding */}
+          <div className="p-4 md:p-8">
+            <div className="mx-auto w-full max-w-7xl">
+              {children}
+            </div>
           </div>
         </main>
       </div>
