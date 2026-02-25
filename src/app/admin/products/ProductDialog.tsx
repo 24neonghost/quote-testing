@@ -229,7 +229,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
 
                 <div className="grid gap-8 sm:grid-cols-2">
                   <div className="space-y-3">
-                    <Label htmlFor="sku" className="text-sm font-bold text-gray-700">SKU(PRODUCT ID)</Label>
+                    <Label htmlFor="sku" className="text-sm font-bold text-gray-700">SKU</Label>
                     <Input
                       id="sku"
                       name="sku"
