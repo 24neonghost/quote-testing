@@ -155,7 +155,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
             styles: { fontStyle: "bold", fontSize: 10, valign: "top", cellPadding: 5 }
           },
           {
-            content: `Quote No :  ${quoteNo}\nDate          :  ${dateStr}\nValidity    :  ${validStr}`,
+            content: `Quote No :  ${quoteNo}\nDate         :  ${dateStr}\nValidity    :  ${validStr}`,
             styles: { fontSize: 10, valign: "middle", cellPadding: 6, fontStyle: "bold" }
           }
         ]],
