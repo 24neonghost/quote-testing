@@ -142,7 +142,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
         validityDate.setTime(d.getTime())
       }
 
-      const toAddress = `To\n\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`;
+      const toAddress = `To\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`;
       const quoteNo = quotation.quotation_number;
       const dateStr = new Date(quotation.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
       const validStr = validityDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
