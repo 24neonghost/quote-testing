@@ -29,15 +29,19 @@ export const generateQuotationPDF = async ({
 
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
+
   const margin = 15
+  const footerSafeY = pageHeight - 30
 
   const currencySymbol = currency === 'INR' ? 'Rs.' : '$'
   const currencyLabel = currency === 'INR' ? 'INR' : 'USD'
 
+  // TOTAL PAGE COUNT FIX
+  const totalPages = items.length + 1
+
   let pageNumber = 1
 
   const drawPageBorder = () => {
-
     doc.setDrawColor(0, 82, 156)
     doc.setLineWidth(1.2)
     doc.rect(5, 5, pageWidth - 10, pageHeight - 10)
@@ -52,6 +56,7 @@ export const generateQuotationPDF = async ({
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
+
     doc.text(
       "Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365",
       pageWidth / 2,
@@ -79,95 +84,144 @@ export const generateQuotationPDF = async ({
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
-    doc.setTextColor(60)
 
     const address =
       "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040"
 
-    doc.text(
-      address,
-      pageWidth - margin,
-      24,
-      { align: "right", lineHeightFactor: 1.4 }
-    )
+    doc.text(address, pageWidth - margin, 24, {
+      align: "right",
+      lineHeightFactor: 1.4
+    })
 
     doc.setDrawColor(0, 82, 156)
-    doc.setLineWidth(0.5)
     doc.line(margin, 42, pageWidth - margin, 42)
 
     doc.setDrawColor(255, 102, 0)
-    doc.setLineWidth(0.3)
     doc.line(margin, 43, pageWidth - margin, 43)
   }
 
+  const drawPageNumber = () => {
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+
+    doc.text(
+      `Page ${pageNumber} of ${totalPages}`,
+      pageWidth - margin,
+      pageHeight - 8,
+      { align: "right" }
+    )
+  }
+
+  const ensureSpace = (requiredHeight: number) => {
+
+    if (currentY + requiredHeight > footerSafeY) {
+
+      doc.addPage()
+
+      pageNumber++
+
+      drawPageBorder()
+      drawHeader(logoBase64)
+      drawPageNumber()
+
+      currentY = 50
+    }
+  }
+
+  // LOAD LOGO
   let logoBase64 = ""
+
   try {
-    logoBase64 = await getBase64ImageFromURL('/quotation-logo.jpg')
+    logoBase64 = await getBase64ImageFromURL("/quotation-logo.jpg")
   } catch {}
 
-  const itemImages: Record<string, any> = {}
+  // LOAD ITEM IMAGES
+  const itemImages: any = {}
 
   await Promise.all(
-    items.map(async (item) => {
+    items.map(async item => {
+
       if (!item.image_url) return
+
       try {
-        itemImages[item.id] =
-          await getBase64ImageWithDimensions(item.image_url)
+
+        const img = await getBase64ImageWithDimensions(item.image_url)
+
+        itemImages[item.id] = img
+
       } catch {}
     })
   )
 
   drawPageBorder()
   drawHeader(logoBase64)
+  drawPageNumber()
 
   let currentY = 50
   let isFirstPage = true
 
-  items.forEach((item, index) => {
+  for (const item of items) {
 
-    if (index > 0) {
+    if (!isFirstPage) {
 
       doc.addPage()
+
       pageNumber++
+
       drawPageBorder()
       drawHeader(logoBase64)
-      currentY = 50
+      drawPageNumber()
 
+      currentY = 50
     }
 
+    // TO BLOCK
     if (isFirstPage) {
 
-      const validityDate = validityData?.validityDate
-        ? new Date(validityData.validityDate)
-        : new Date()
+      const validityDate = new Date(
+        validityData?.validityDate ||
+        quotation.validity_date ||
+        quotation.created_at
+      )
 
-      const toAddress =
-        `To\n\n${quotation.customer_name}\n${quotation.customer_address || ""}`
+      const quoteNo = quotation.quotation_number
+
+      const dateStr = new Date(
+        quotation.created_at
+      ).toLocaleDateString("en-GB").replace(/\//g, "-")
+
+      const validStr = validityDate
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-")
 
       autoTable(doc, {
         startY: currentY,
         body: [[
-          { content: toAddress },
           {
             content:
-              `Quote No : ${quotation.quotation_number}\n` +
-              `Date : ${new Date().toLocaleDateString()}\n` +
-              `Validity : ${validityDate.toLocaleDateString()}`
+              `To\n\n${quotation.customer_name}\n${quotation.customer_address || ""}`
+          },
+          {
+            content:
+              `Quote No : ${quoteNo}\nDate : ${dateStr}\nValidity : ${validStr}`
           }
         ]],
         theme: "grid",
         margin: { left: margin, right: margin }
       })
 
-      currentY =
-        (doc as any).lastAutoTable.finalY + 10
+      currentY = (doc as any).lastAutoTable.finalY + 10
 
       isFirstPage = false
-
     }
 
-    doc.setFont("helvetica", "bold")
+    ensureSpace(20)
+
     doc.setFontSize(14)
+
+    doc.setTextColor(0, 82, 156)
+
     doc.text(
       "Technical & Commercial Offer",
       pageWidth / 2,
@@ -175,9 +229,12 @@ export const generateQuotationPDF = async ({
       { align: "center" }
     )
 
-    currentY += 7
+    currentY += 8
 
     doc.setFontSize(12)
+
+    doc.setTextColor(0)
+
     doc.text(
       `For ${item.name}`,
       pageWidth / 2,
@@ -185,219 +242,242 @@ export const generateQuotationPDF = async ({
       { align: "center" }
     )
 
-    currentY += 12
+    currentY += 10
 
     doc.setFontSize(10)
+
     doc.text("Description:", margin, currentY)
 
     currentY += 6
 
+    const splitDesc = doc.splitTextToSize(
+      item.description || "",
+      pageWidth - margin * 2
+    )
+
+    ensureSpace(splitDesc.length * 5)
+
     doc.setFontSize(9)
 
-    const desc =
-      doc.splitTextToSize(
-        item.description || "",
-        pageWidth - margin * 2
-      )
+    doc.text(splitDesc, margin, currentY)
 
-    doc.text(desc, margin, currentY)
+    currentY += splitDesc.length * 5 + 8
 
-    currentY += desc.length * 5 + 5
+    const image = itemImages[item.id]
 
-    const imageData = itemImages[item.id]
+    const format = item.image_format || "wide"
 
+    // FORMAT 1 (WIDE IMAGE)
+    if (format === "wide" && image) {
+
+      const maxWidth = pageWidth - margin * 2
+
+      const ratio = maxWidth / image.width
+
+      const w = maxWidth
+
+      const h = image.height * ratio
+
+      ensureSpace(h + 10)
+
+      doc.addImage(image.base64, "JPEG", margin, currentY, w, h)
+
+      currentY += h + 10
+    }
+
+    // FEATURES
+    const features = item.features || []
+
+    doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
+
     doc.text("FEATURES:", margin, currentY)
 
     currentY += 6
 
-    const featureStartY = currentY
-
     doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
 
-    const featureWidth =
-      (pageWidth - margin * 2) * 0.52
+    if (format === "tall" && image) {
 
-    let featureEndY = featureStartY
+      const imgWidth = 60
+      const ratio = imgWidth / image.width
+      const imgHeight = image.height * ratio
 
-    item.features?.forEach((f: string) => {
+      const imgX = pageWidth - margin - imgWidth
 
-      const split =
-        doc.splitTextToSize(
-          f,
-          featureWidth - 10
-        )
+      doc.addImage(image.base64, "JPEG", imgX, currentY, imgWidth, imgHeight)
 
-      doc.text("•", margin + 3, featureEndY)
+      const featureWidth = pageWidth - margin * 2 - imgWidth - 5
 
-      doc.text(split, margin + 8, featureEndY)
+      const startY = currentY
 
-      featureEndY += split.length * 4.5
+      for (const f of features) {
 
-    })
+        const lines = doc.splitTextToSize(f, featureWidth)
 
-    if (imageData?.base64) {
+        ensureSpace(lines.length * 5)
 
-      const maxW =
-        (pageWidth - margin * 2) * 0.42
+        doc.text("•", margin, currentY)
+        doc.text(lines, margin + 5, currentY)
 
-      const maxH = 80
+        currentY += lines.length * 5
+      }
 
-      const ratio =
-        Math.min(
-          maxW / imageData.width,
-          maxH / imageData.height
-        )
+      currentY = Math.max(currentY, startY + imgHeight) + 10
 
-      const newW =
-        imageData.width * ratio
+    } else {
 
-      const newH =
-        imageData.height * ratio
+      for (const f of features) {
 
-      const imgX =
-        pageWidth - margin - newW - 5
+        const lines = doc.splitTextToSize(f, pageWidth - margin * 2)
 
-      doc.addImage(
-        imageData.base64,
-        "JPEG",
-        imgX,
-        featureStartY,
-        newW,
-        newH
-      )
+        ensureSpace(lines.length * 5)
 
-      currentY =
-        Math.max(
-          featureEndY,
-          featureStartY + newH
-        ) + 10
+        doc.text("•", margin, currentY)
+        doc.text(lines, margin + 5, currentY)
 
-    }
-    else {
-      currentY = featureEndY + 10
+        currentY += lines.length * 5
+      }
+
+      currentY += 10
     }
 
+    // SPECIFICATIONS FIX
     if (item.specs?.length) {
 
+      ensureSpace(20)
+
       doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+
       doc.text("Specifications:", margin, currentY)
 
       currentY += 6
 
       doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
 
-      item.specs.forEach((s: any) => {
+      for (const s of item.specs) {
 
-        const txt =
-          doc.splitTextToSize(
-            `${s.key}: ${s.value}`,
-            pageWidth - margin * 2
-          )
+        const line = `${s.key}: ${s.value}`
 
-        doc.text("•", margin + 3, currentY)
+        const lines = doc.splitTextToSize(
+          line,
+          pageWidth - margin * 2
+        )
 
-        doc.text(txt, margin + 8, currentY)
+        ensureSpace(lines.length * 5)
 
-        currentY += txt.length * 5
+        doc.text("•", margin, currentY)
 
-      })
+        doc.text(lines, margin + 5, currentY)
 
-      currentY += 5
+        currentY += lines.length * 5
+      }
 
+      currentY += 10
     }
 
-  })
+  }
 
+  // TERMS PAGE
   doc.addPage()
+
   pageNumber++
 
   drawPageBorder()
   drawHeader(logoBase64)
+  drawPageNumber()
 
-  let y = 60
+  currentY = 55
 
+  doc.setFontSize(12)
   doc.setFont("helvetica", "bold")
-  doc.text("Terms And Conditions:", margin, y)
 
-  y += 10
+  doc.text("Terms And Conditions:", margin, currentY)
 
-  selectedTerms?.forEach(t => {
+  currentY += 10
 
-    const split =
-      doc.splitTextToSize(
-        `${t.title}: ${t.text}`,
-        pageWidth - margin * 2
-      )
+  const terms = selectedTerms || []
 
-    doc.text("•", margin, y)
+  doc.setFontSize(9)
+  doc.setFont("helvetica", "normal")
 
-    doc.text(split, margin + 5, y)
+  for (const t of terms) {
 
-    y += split.length * 5 + 3
+    const line = `${t.title}: ${t.text}`
 
-  })
-
-  const totalPages = doc.getNumberOfPages()
-
-  for (let i = 1; i <= totalPages; i++) {
-
-    doc.setPage(i)
-
-    doc.setFontSize(8)
-
-    doc.text(
-      `Page ${i} of ${totalPages}`,
-      pageWidth - margin,
-      pageHeight - 8,
-      { align: "right" }
+    const lines = doc.splitTextToSize(
+      line,
+      pageWidth - margin * 2
     )
 
+    ensureSpace(lines.length * 5)
+
+    doc.text("•", margin, currentY)
+    doc.text(lines, margin + 5, currentY)
+
+    currentY += lines.length * 5 + 3
   }
 
-  doc.save(`${quotation.quotation_number}_Quotation.pdf`)
+  const pdfName = `${quotation.quotation_number}_Quotation.pdf`
+
+  doc.save(pdfName)
 
   return doc.output("blob")
 }
 
+const getBase64ImageFromURL = (url: string) =>
+  new Promise<string>((resolve, reject) => {
 
-// image helpers remain same
+    const img = new Image()
 
-const getBase64ImageFromURL = async (url: string) => {
-  const img = new Image()
-  img.crossOrigin = "anonymous"
-  img.src = url
+    img.crossOrigin = "anonymous"
 
-  await new Promise(res => img.onload = res)
+    img.onload = () => {
 
-  const canvas = document.createElement("canvas")
-  canvas.width = img.width
-  canvas.height = img.height
+      const canvas = document.createElement("canvas")
 
-  const ctx = canvas.getContext("2d")
-  ctx?.drawImage(img, 0, 0)
+      canvas.width = img.width
+      canvas.height = img.height
 
-  return canvas.toDataURL("image/jpeg", 0.85)
-}
+      const ctx = canvas.getContext("2d")
 
-const getBase64ImageWithDimensions = async (url: string) => {
+      ctx?.drawImage(img, 0, 0)
 
-  const img = new Image()
-  img.crossOrigin = "anonymous"
-  img.src = url
+      resolve(canvas.toDataURL("image/jpeg", 0.85))
+    }
 
-  await new Promise(res => img.onload = res)
+    img.onerror = reject
 
-  const canvas = document.createElement("canvas")
-  canvas.width = img.width
-  canvas.height = img.height
+    img.src = url
+  })
 
-  const ctx = canvas.getContext("2d")
-  ctx?.drawImage(img, 0, 0)
+const getBase64ImageWithDimensions = (url: string) =>
+  new Promise<any>((resolve, reject) => {
 
-  return {
-    base64: canvas.toDataURL("image/jpeg", 0.85),
-    width: img.width,
-    height: img.height
-  }
-}
+    const img = new Image()
+
+    img.crossOrigin = "anonymous"
+
+    img.onload = () => {
+
+      const canvas = document.createElement("canvas")
+
+      canvas.width = img.width
+      canvas.height = img.height
+
+      canvas.getContext("2d")?.drawImage(img, 0, 0)
+
+      resolve({
+        base64: canvas.toDataURL("image/jpeg", 0.85),
+        width: img.width,
+        height: img.height
+      })
+    }
+
+    img.onerror = reject
+
+    img.src = url
+  })
