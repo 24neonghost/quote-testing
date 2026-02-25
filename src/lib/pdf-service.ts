@@ -199,7 +199,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     doc.setFontSize(9)
     const splitDesc = doc.splitTextToSize(item.description || "", pageWidth - (margin * 2))
     
-    // Check if description itself needs a page break
+    // Check if description itself needs a page break (unlikely to be huge, but safe to check)
     if (currentY + (splitDesc.length * 5) > contentBottomLimit) {
          doc.addPage();
          drawPageBorder();
@@ -239,8 +239,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
         checkAddPage(newHeight + 10)
         
         const x = (pageWidth - newWidth) / 2
-        // BUG FIX: Ensure JPEG instead of PNG to prevent crashes
-        doc.addImage(imageData.base64, "JPEG", x, currentY, newWidth, newHeight)
+        doc.addImage(imageData.base64, "PNG", x, currentY, newWidth, newHeight)
         currentY += newHeight + 10
       }
 
@@ -257,7 +256,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
         const splitFeature = doc.splitTextToSize(f, pageWidth - (margin * 2) - 10)
         const featureHeight = splitFeature.length * 4.5
         
-        checkAddPage(featureHeight + 2) // Check each item dynamically
+        checkAddPage(featureHeight + 2) // Check each item
         
         doc.text("•", margin + 3, currentY)
         doc.text(splitFeature, margin + 8, currentY)
@@ -268,26 +267,25 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     
     // --- FORMAT 2: TALL (Features Left, Image Right) ---
     else {
+      // Logic: Calculate height of features block first to see if it fits with image
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
       
-      const maxImgHeight = 80;
-      let newWidth = 0;
-      let newHeight = 0;
-      let imgX = 0;
-      const featureWidth = (pageWidth - (margin * 2)) * 0.55;
+      // Calculate Feature Block Height virtually
+      const featureWidth = (pageWidth - (margin * 2)) * 0.55
+      let estimatedFeatureHeight = 6; // Header space
+      doc.setFont("helvetica", "normal") // Switch font to calc size
+      doc.setFontSize(9)
+      features.forEach((f: string) => {
+          const split = doc.splitTextToSize(f, featureWidth);
+          estimatedFeatureHeight += split.length * 4.5;
+      });
       
-      if (imageData?.base64) {
-        const maxImgWidth = (pageWidth - (margin * 2)) * 0.40
-        const ratio = Math.min(maxImgWidth / imageData.width, maxImgHeight / imageData.height)
-        newWidth = imageData.width * ratio
-        newHeight = imageData.height * ratio
-        imgX = margin + featureWidth + 5 + (maxImgWidth - newWidth) / 2
-        
-        checkAddPage(newHeight + 10);
-      } else {
-        checkAddPage(20);
-      }
+      const maxImgHeight = 80;
+      const requiredHeight = Math.max(estimatedFeatureHeight, imageData?.base64 ? maxImgHeight : 0) + 10;
+
+      // Check if the whole block fits
+      checkAddPage(requiredHeight);
 
       // Draw Header
       doc.setFont("helvetica", "bold")
@@ -296,71 +294,58 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
       currentY += 6
       
       const featureStartY = currentY
-      const startPageNum = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.internal.pages.length - 1;
+      
+      // Draw Features
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      features.forEach((f: string) => {
+        doc.text("•", margin + 3, currentY)
+        const splitFeature = doc.splitTextToSize(f, featureWidth)
+        doc.text(splitFeature, margin + 8, currentY)
+        currentY += splitFeature.length * 4.5
+      })
+      
+      const featuresEndY = currentY;
 
       // Draw Image on Right
       let imageEndY = featureStartY;
       if (imageData?.base64) {
+        const maxImgWidth = (pageWidth - (margin * 2)) * 0.40
+        // Use previously defined maxImgHeight
+        const ratio = Math.min(maxImgWidth / imageData.width, maxImgHeight / imageData.height)
+        const newWidth = imageData.width * ratio
+        const newHeight = imageData.height * ratio
+
+        const imgX = margin + featureWidth + 5 + (maxImgWidth - newWidth) / 2
         doc.addImage(imageData.base64, "JPEG", imgX, featureStartY, newWidth, newHeight)
         imageEndY = featureStartY + newHeight + 10
       }
       
-      // Draw Features dynamically allowing page breaks
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(9)
-      features.forEach((f: string) => {
-        const splitFeature = doc.splitTextToSize(f, featureWidth)
-        const featureHeight = splitFeature.length * 4.5
-        
-        checkAddPage(featureHeight + 2)
-        
-        doc.text("•", margin + 3, currentY)
-        doc.text(splitFeature, margin + 8, currentY)
-        currentY += featureHeight
-      })
-      
-      const featuresEndY = currentY;
-      const endPageNum = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.internal.pages.length - 1;
-
-      if (endPageNum > startPageNum) {
-        // If features spilled over to a new page, currentY is just featuresEndY
-        currentY = featuresEndY + 5;
-      } else {
-        // If both are on the same page, take the max Y safely
-        currentY = Math.max(featuresEndY, imageEndY) + 10;
-      }
+      // Set currentY to the lowest point of either column to avoid overlap
+      currentY = Math.max(featuresEndY, imageEndY) + 5
     }
 
-    // --- Specification Section (Applies to both formats) ---
+    // Specification Section
     if (item.specs && item.specs.length > 0) {
-      checkAddPage(20) // Ensure there is room for the title and at least one spec
+      checkAddPage(20) // Ensure header fits
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
       doc.text("Specifications:", margin, currentY)
-      currentY += 7
-      
+      currentY += 6
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
 
       item.specs.forEach((s: { key: string; value: string }) => {
-        const keyText = s.key || "";
-        const valText = (s.value || "").startsWith(":") ? s.value : `: ${s.value}`;
+        const specLine = `${s.key}: ${s.value}`
+        // Approximate height check
+        checkAddPage(6)
         
-        // Wrap text to avoid horizontal overlap and calculate exact row height
-        const splitKey = doc.splitTextToSize(keyText, 45); 
-        const splitVal = doc.splitTextToSize(valText, pageWidth - margin - 55 - margin);
-        
-        const rowHeight = Math.max(splitKey.length, splitVal.length) * 5;
-        checkAddPage(rowHeight + 2); // Prevent overlapping the footer
-        
-        doc.setFont("helvetica", "bold")
         doc.text("•", margin + 3, currentY)
-        doc.text(splitKey, margin + 8, currentY)
-        
+        doc.setFont("helvetica", "bold")
+        doc.text(s.key, margin + 8, currentY)
         doc.setFont("helvetica", "normal")
-        doc.text(splitVal, margin + 55, currentY)
-        
-        currentY += rowHeight;
+        doc.text(s.value.startsWith(":") ? s.value : `: ${s.value}`, margin + 55, currentY)
+        currentY += 5
       })
       currentY += 5
     }
@@ -479,7 +464,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
   }
 
   // --- Final Pass: Add correct page numbers to ALL pages ---
-  const totalPages = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.internal.pages.length - 1;
+  const totalPages = doc.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     doc.setFont("helvetica", "normal")
