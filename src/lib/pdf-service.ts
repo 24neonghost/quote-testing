@@ -27,18 +27,18 @@ export const generateQuotationPDF = async ({
   const pageHeight = doc.internal.pageSize.getHeight()
 
   const margin = 15
-  const safeBottom = pageHeight - 30
+  const footerSafe = 30
 
   const currencySymbol = currency === "INR" ? "Rs." : "$"
   const currencyLabel = currency === "INR" ? "INR" : "USD"
 
   let pageNumber = 1
 
-  //--------------------------------------------------
+  //-----------------------------------
   // BORDER + FOOTER
-  //--------------------------------------------------
+  //-----------------------------------
 
-  const drawPageBorder = () => {
+  const drawBorderFooter = () => {
 
     doc.setDrawColor(0, 82, 156)
     doc.setLineWidth(1.2)
@@ -50,7 +50,8 @@ export const generateQuotationPDF = async ({
 
     doc.setDrawColor(0)
     doc.setLineWidth(0.3)
-    doc.rect(margin + 10, pageHeight - 20, pageWidth - (margin * 2) - 20, 8)
+
+    doc.rect(margin + 10, pageHeight - 20, pageWidth - margin * 2 - 20, 8)
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
@@ -61,11 +62,12 @@ export const generateQuotationPDF = async ({
       pageHeight - 14.5,
       { align: "center" }
     )
+
   }
 
-  //--------------------------------------------------
+  //-----------------------------------
   // HEADER
-  //--------------------------------------------------
+  //-----------------------------------
 
   const drawHeader = (logo: string) => {
 
@@ -76,7 +78,12 @@ export const generateQuotationPDF = async ({
     doc.setFontSize(11)
     doc.setTextColor(0, 82, 156)
 
-    doc.text("RAISE LAB EQUIPMENT", pageWidth - margin, 18, { align: "right" })
+    doc.text(
+      "RAISE LAB EQUIPMENT",
+      pageWidth - margin,
+      18,
+      { align: "right" }
+    )
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
@@ -86,21 +93,19 @@ export const generateQuotationPDF = async ({
       "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040",
       pageWidth - margin,
       24,
-      { align: "right" }
+      { align: "right", lineHeightFactor: 1.4 }
     )
 
     doc.setDrawColor(0, 82, 156)
-    doc.setLineWidth(0.5)
     doc.line(margin, 42, pageWidth - margin, 42)
 
     doc.setDrawColor(255, 102, 0)
-    doc.setLineWidth(0.3)
     doc.line(margin, 43, pageWidth - margin, 43)
   }
 
-  //--------------------------------------------------
+  //-----------------------------------
   // PAGE NUMBER
-  //--------------------------------------------------
+  //-----------------------------------
 
   const drawPageNumber = () => {
 
@@ -116,9 +121,9 @@ export const generateQuotationPDF = async ({
     )
   }
 
-  //--------------------------------------------------
+  //-----------------------------------
   // NEW PAGE
-  //--------------------------------------------------
+  //-----------------------------------
 
   const newPage = (logo: string) => {
 
@@ -126,209 +131,195 @@ export const generateQuotationPDF = async ({
 
     pageNumber++
 
-    drawPageBorder()
+    drawBorderFooter()
     drawHeader(logo)
     drawPageNumber()
 
-    doc.setTextColor(0)
+    return 50
   }
 
-  //--------------------------------------------------
+  //-----------------------------------
   // LOAD LOGO
-  //--------------------------------------------------
+  //-----------------------------------
 
-  let logoBase64 = ""
+  let logo = ""
 
   try {
-    logoBase64 = await getBase64ImageFromURL("/quotation-logo.jpg")
+    logo = await getBase64ImageFromURL("/quotation-logo.jpg")
   } catch {}
 
-  //--------------------------------------------------
-  // LOAD ITEM IMAGES
-  //--------------------------------------------------
+  //-----------------------------------
+  // LOAD IMAGES
+  //-----------------------------------
 
-  const images: Record<string, any> = {}
+  const itemImages: any = {}
 
   await Promise.all(
-    items.map(async (item) => {
+    items.map(async item => {
 
       if (!item.image_url) return
 
       try {
-        images[item.id] =
-          await getBase64ImageWithDimensions(item.image_url)
+
+        const img = await getBase64ImageWithDimensions(item.image_url)
+
+        itemImages[item.id] = img
+
       } catch {}
 
     })
   )
 
-  //--------------------------------------------------
+  //-----------------------------------
   // START FIRST PAGE
-  //--------------------------------------------------
+  //-----------------------------------
 
-  drawPageBorder()
-  drawHeader(logoBase64)
+  drawBorderFooter()
+  drawHeader(logo)
   drawPageNumber()
 
-  let y = 50
+  let currentY = 50
 
-  //--------------------------------------------------
+  //-----------------------------------
+  // TO TABLE
+  //-----------------------------------
+
+  autoTable(doc, {
+
+    startY: currentY,
+
+    body: [[
+
+      {
+        content:
+          `To\n\n${quotation.customer_name}\n${quotation.customer_address || ""}`,
+        styles: { fontStyle: "bold", fontSize: 10 }
+      },
+
+      {
+        content:
+          `Quote No : ${quotation.quotation_number}
+Date : ${new Date().toLocaleDateString("en-GB").replace(/\//g, "-")}
+Validity : ${
+          validityData?.validityDate
+            ? new Date(validityData.validityDate)
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
+            : ""
+          }`,
+        styles: { fontSize: 10, fontStyle: "bold" }
+      }
+
+    ]],
+
+    theme: "grid",
+
+    margin: { left: margin, right: margin }
+
+  })
+
+  currentY = (doc as any).lastAutoTable.finalY + 10
+
+  //-----------------------------------
   // ITEMS LOOP
-  //--------------------------------------------------
+  //-----------------------------------
 
-  for (let i = 0; i < items.length; i++) {
+  for (const item of items) {
 
-    const item = items[i]
-
-    if (i > 0) {
-      newPage(logoBase64)
-      y = 50
-    }
-
-    //--------------------------------------------------
+    //-----------------------------------
     // TITLE
-    //--------------------------------------------------
+    //-----------------------------------
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
     doc.setTextColor(0, 82, 156)
 
-    doc.text("Technical & Commercial Offer", pageWidth / 2, y, { align: "center" })
+    doc.text("Technical & Commercial Offer", pageWidth / 2, currentY, { align: "center" })
 
-    y += 8
+    currentY += 7
 
     doc.setFontSize(12)
     doc.setTextColor(0)
 
-    doc.text(`For ${item.name}`, pageWidth / 2, y, { align: "center" })
+    doc.text(`For ${item.name}`, pageWidth / 2, currentY, { align: "center" })
 
-    y += 12
+    currentY += 10
 
-    //--------------------------------------------------
+    //-----------------------------------
     // DESCRIPTION
-    //--------------------------------------------------
+    //-----------------------------------
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
+    doc.text("Description:", margin, currentY)
 
-    doc.text("Description:", margin, y)
-
-    y += 6
+    currentY += 6
 
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
 
     const desc = doc.splitTextToSize(item.description || "", pageWidth - margin * 2)
 
-    doc.text(desc, margin, y)
+    doc.text(desc, margin, currentY)
 
-    y += desc.length * 5 + 8
+    currentY += desc.length * 5 + 5
 
-    //--------------------------------------------------
-    // FEATURES + IMAGE
-    //--------------------------------------------------
+    //-----------------------------------
+    // IMAGE
+    //-----------------------------------
 
-    const image = images[item.id]
-    const format = item.image_format || "wide"
+    const image = itemImages[item.id]
 
-    const features = item.features || []
+    if (image) {
 
-    if (format === "wide") {
+      const maxWidth = pageWidth - margin * 2 - 20
 
-      if (image) {
+      const ratio = maxWidth / image.width
 
-        const maxWidth = pageWidth - margin * 2 - 30
-        const ratio = maxWidth / image.width
+      const w = image.width * ratio
+      const h = image.height * ratio
 
-        const w = image.width * ratio
-        const h = image.height * ratio
+      const x = margin + 10
 
-        const x = margin + 15
+      doc.addImage(image.base64, "JPEG", x, currentY, w, h)
 
-        doc.addImage(image.base64, "JPEG", x, y, w, h)
-
-        y += h + 10
-      }
-
-      doc.setFont("helvetica", "bold")
-      doc.text("FEATURES:", margin, y)
-
-      y += 6
-
-      doc.setFont("helvetica", "normal")
-
-      for (const f of features) {
-
-        const lines = doc.splitTextToSize(f, pageWidth - margin * 2 - 10)
-
-        doc.text("•", margin + 2, y)
-        doc.text(lines, margin + 7, y)
-
-        y += lines.length * 5
-      }
-
-      y += 8
-
-    } else {
-
-      const leftWidth = pageWidth * 0.55
-
-      const startY = y
-
-      doc.setFont("helvetica", "bold")
-      doc.text("FEATURES:", margin, y)
-
-      y += 6
-
-      doc.setFont("helvetica", "normal")
-
-      let featureY = y
-
-      for (const f of features) {
-
-        const lines = doc.splitTextToSize(f, leftWidth - 10)
-
-        doc.text("•", margin + 2, featureY)
-        doc.text(lines, margin + 7, featureY)
-
-        featureY += lines.length * 5
-      }
-
-      if (image) {
-
-        const maxWidth = pageWidth * 0.35
-
-        const ratio = maxWidth / image.width
-
-        const w = image.width * ratio
-        const h = image.height * ratio
-
-        const imgX = margin + leftWidth + 10
-
-        doc.addImage(image.base64, "JPEG", imgX, startY, w, h)
-
-        y = Math.max(featureY, startY + h) + 10
-
-      } else {
-        y = featureY + 10
-      }
+      currentY += h + 10
     }
 
-    //--------------------------------------------------
-    // SPECIFICATIONS (FIXED)
-    //--------------------------------------------------
+    //-----------------------------------
+    // FEATURES
+    //-----------------------------------
+
+    doc.setFont("helvetica", "bold")
+    doc.text("FEATURES:", margin, currentY)
+
+    currentY += 6
+
+    doc.setFont("helvetica", "normal")
+
+    for (const f of item.features || []) {
+
+      const lines = doc.splitTextToSize(f, pageWidth - margin * 2 - 5)
+
+      doc.text("•", margin, currentY)
+      doc.text(lines, margin + 5, currentY)
+
+      currentY += lines.length * 5
+
+      if (currentY > pageHeight - footerSafe)
+        currentY = newPage(logo)
+    }
+
+    //-----------------------------------
+    // SPECIFICATIONS
+    //-----------------------------------
 
     if (item.specs?.length) {
 
-      if (y > safeBottom) {
-        newPage(logoBase64)
-        y = 50
-      }
+      currentY += 5
 
       doc.setFont("helvetica", "bold")
-      doc.text("Specifications:", margin, y)
+      doc.text("Specifications:", margin, currentY)
 
-      y += 6
+      currentY += 6
 
       doc.setFont("helvetica", "normal")
 
@@ -336,143 +327,141 @@ export const generateQuotationPDF = async ({
 
         const text = `${s.key}: ${s.value}`
 
-        const lines = doc.splitTextToSize(text, pageWidth - margin * 2)
+        const lines = doc.splitTextToSize(text, pageWidth - margin * 2 - 5)
 
-        doc.text("•", margin + 2, y)
-        doc.text(lines, margin + 7, y)
+        doc.text("•", margin, currentY)
+        doc.text(lines, margin + 5, currentY)
 
-        y += lines.length * 5
+        currentY += lines.length * 5
+
+        if (currentY > pageHeight - footerSafe)
+          currentY = newPage(logo)
       }
-
-      y += 10
     }
 
-    //--------------------------------------------------
-    // COMMERCIAL OFFER (FIXED)
-    //--------------------------------------------------
+    //-----------------------------------
+    // COMMERCIAL TABLE
+    //-----------------------------------
 
-    if (y > safeBottom) {
-      newPage(logoBase64)
-      y = 50
-    }
+    currentY += 10
 
     doc.setFont("helvetica", "bold")
-    doc.text("Commercial Offer:", margin, y)
+    doc.text("Commercial Offer:", margin, currentY)
 
-    y += 6
+    currentY += 5
+
+    let desc = item.name
+
+    if (item.selectedAddons?.length) {
+
+      desc += "\n\nStandard Accessories:"
+
+      item.selectedAddons.forEach(a =>
+        desc += `\n• ${a.name}`
+      )
+    }
 
     autoTable(doc, {
 
-      startY: y,
+      startY: currentY,
 
       head: [["S.No", "Description", "Qty", `Price (${currencyLabel})`]],
 
       body: [[
         "01",
-        item.name,
+        desc,
         "1",
-        `${currencySymbol} ${item.price.toLocaleString('en-IN')}/-`
+        `${currencySymbol} ${item.price.toLocaleString()}/-`
       ]],
 
-      margin: { left: margin, right: margin },
+      theme: "grid",
 
-      headStyles: {
-        fillColor: [0, 82, 156],
-        textColor: [255, 255, 255]
-      }
+      margin: { left: margin, right: margin }
+
     })
 
-    y = (doc as any).lastAutoTable.finalY + 15
+    currentY = (doc as any).lastAutoTable.finalY + 10
   }
 
-  //--------------------------------------------------
+  //-----------------------------------
   // TERMS PAGE
-  //--------------------------------------------------
+  //-----------------------------------
 
-  newPage(logoBase64)
-
-  let y2 = 55
+  currentY = newPage(logo)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
+  doc.setTextColor(0, 82, 156)
 
-  doc.text("Terms And Conditions:", margin, y2)
+  doc.text("Terms And Conditions:", margin, currentY)
 
-  y2 += 10
+  currentY += 10
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(9)
+  doc.setTextColor(0)
 
-  const terms = selectedTerms || []
+  for (const t of selectedTerms || []) {
 
-  for (const t of terms) {
+    const text = `${t.title}: ${t.text}`
 
-    const txt = `${t.title}: ${t.text}`
+    const lines = doc.splitTextToSize(text, pageWidth - margin * 2 - 5)
 
-    const lines = doc.splitTextToSize(txt, pageWidth - margin * 2)
+    doc.text("•", margin, currentY)
+    doc.text(lines, margin + 5, currentY)
 
-    doc.text("•", margin, y2)
-    doc.text(lines, margin + 5, y2)
-
-    y2 += lines.length * 5 + 2
+    currentY += lines.length * 5
   }
 
-  //--------------------------------------------------
-  // SIGNATURE (FIXED)
-  //--------------------------------------------------
+  //-----------------------------------
+  // USER SIGN
+  //-----------------------------------
 
-  y2 += 15
+  currentY += 15
 
   doc.setFont("helvetica", "bold")
 
   doc.text(
     `From ${settings?.company_name || "Raise Lab Equipment"}`,
     pageWidth - margin,
-    y2,
+    currentY,
     { align: "right" }
   )
 
-  y2 += 6
+  currentY += 6
 
   doc.text(
-    user?.full_name || "Sales Team",
+    user?.full_name || "SALES TEAM",
     pageWidth - margin,
-    y2,
+    currentY,
     { align: "right" }
   )
 
-  y2 += 6
+  currentY += 6
 
   doc.setFont("helvetica", "normal")
 
   doc.text(
     `Contact: ${user?.phone || "+91 91777 70365"}`,
     pageWidth - margin,
-    y2,
+    currentY,
     { align: "right" }
   )
 
-  //--------------------------------------------------
+  //-----------------------------------
   // SAVE
-  //--------------------------------------------------
+  //-----------------------------------
 
   doc.save(`${quotation.quotation_number}_Quotation.pdf`)
 
   return doc.output("blob")
 }
 
-
-
-
-
-
-// IMAGE HELPERS
+////////////////////////////////////////////////////////////
 
 const getBase64ImageFromURL = (url: string): Promise<string> =>
   new Promise((resolve, reject) => {
 
     const img = new Image()
-
     img.crossOrigin = "anonymous"
 
     img.onload = () => {
@@ -494,12 +483,12 @@ const getBase64ImageFromURL = (url: string): Promise<string> =>
     img.src = url
   })
 
+////////////////////////////////////////////////////////////
 
 const getBase64ImageWithDimensions = (url: string): Promise<any> =>
   new Promise((resolve, reject) => {
 
     const img = new Image()
-
     img.crossOrigin = "anonymous"
 
     img.onload = () => {
