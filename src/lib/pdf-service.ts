@@ -31,17 +31,15 @@ export const generateQuotationPDF = async ({
   const pageHeight = doc.internal.pageSize.getHeight()
 
   const margin = 15
-  const footerSafeY = pageHeight - 30
+  const contentBottomLimit = pageHeight - 30
 
   const currencySymbol = currency === 'INR' ? 'Rs.' : '$'
   const currencyLabel = currency === 'INR' ? 'INR' : 'USD'
 
-  // TOTAL PAGE COUNT FIX
-  const totalPages = items.length + 1
-
   let pageNumber = 1
 
   const drawPageBorder = () => {
+
     doc.setDrawColor(0, 82, 156)
     doc.setLineWidth(1.2)
     doc.rect(5, 5, pageWidth - 10, pageHeight - 10)
@@ -52,10 +50,17 @@ export const generateQuotationPDF = async ({
 
     doc.setDrawColor(0, 0, 0)
     doc.setLineWidth(0.3)
-    doc.rect(margin + 10, pageHeight - 20, pageWidth - (margin * 2) - 20, 8)
+
+    doc.rect(
+      margin + 10,
+      pageHeight - 20,
+      pageWidth - (margin * 2) - 20,
+      8
+    )
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
+    doc.setTextColor(0)
 
     doc.text(
       "Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365",
@@ -75,15 +80,11 @@ export const generateQuotationPDF = async ({
     doc.setFontSize(11)
     doc.setTextColor(0, 82, 156)
 
-    doc.text(
-      "RAISE LAB EQUIPMENT",
-      pageWidth - margin,
-      18,
-      { align: "right" }
-    )
+    doc.text("RAISE LAB EQUIPMENT", pageWidth - margin, 18, { align: "right" })
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
+    doc.setTextColor(60)
 
     const address =
       "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040"
@@ -94,28 +95,33 @@ export const generateQuotationPDF = async ({
     })
 
     doc.setDrawColor(0, 82, 156)
+    doc.setLineWidth(0.5)
     doc.line(margin, 42, pageWidth - margin, 42)
 
     doc.setDrawColor(255, 102, 0)
+    doc.setLineWidth(0.3)
     doc.line(margin, 43, pageWidth - margin, 43)
+
+    doc.setTextColor(0)
   }
 
   const drawPageNumber = () => {
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8)
+    doc.setTextColor(0)
 
     doc.text(
-      `Page ${pageNumber} of ${totalPages}`,
+      `Page ${pageNumber}`,
       pageWidth - margin,
       pageHeight - 8,
       { align: "right" }
     )
   }
 
-  const ensureSpace = (requiredHeight: number) => {
+  const ensurePageSpace = (neededHeight: number, logoBase64: string) => {
 
-    if (currentY + requiredHeight > footerSafeY) {
+    if (currentY + neededHeight > contentBottomLimit) {
 
       doc.addPage()
 
@@ -125,31 +131,26 @@ export const generateQuotationPDF = async ({
       drawHeader(logoBase64)
       drawPageNumber()
 
+      doc.setTextColor(0)
+
       currentY = 50
     }
   }
 
-  // LOAD LOGO
   let logoBase64 = ""
 
   try {
-    logoBase64 = await getBase64ImageFromURL("/quotation-logo.jpg")
+    logoBase64 = await getBase64ImageFromURL('/quotation-logo.jpg')
   } catch {}
 
-  // LOAD ITEM IMAGES
-  const itemImages: any = {}
+  const itemImages: Record<string, any> = {}
 
   await Promise.all(
-    items.map(async item => {
-
+    items.map(async (item) => {
       if (!item.image_url) return
-
       try {
-
-        const img = await getBase64ImageWithDimensions(item.image_url)
-
-        itemImages[item.id] = img
-
+        itemImages[item.id] =
+          await getBase64ImageWithDimensions(item.image_url)
       } catch {}
     })
   )
@@ -161,9 +162,9 @@ export const generateQuotationPDF = async ({
   let currentY = 50
   let isFirstPage = true
 
-  for (const item of items) {
+  items.forEach((item, index) => {
 
-    if (!isFirstPage) {
+    if (index > 0) {
 
       doc.addPage()
 
@@ -173,53 +174,39 @@ export const generateQuotationPDF = async ({
       drawHeader(logoBase64)
       drawPageNumber()
 
+      doc.setTextColor(0)
+
       currentY = 50
     }
 
-    // TO BLOCK
     if (isFirstPage) {
-
-      const validityDate = new Date(
-        validityData?.validityDate ||
-        quotation.validity_date ||
-        quotation.created_at
-      )
-
-      const quoteNo = quotation.quotation_number
-
-      const dateStr = new Date(
-        quotation.created_at
-      ).toLocaleDateString("en-GB").replace(/\//g, "-")
-
-      const validStr = validityDate
-        .toLocaleDateString("en-GB")
-        .replace(/\//g, "-")
 
       autoTable(doc, {
         startY: currentY,
         body: [[
           {
-            content:
-              `To\n\n${quotation.customer_name}\n${quotation.customer_address || ""}`
+            content: `To\n\n${quotation.customer_name}`,
+            styles: { fontStyle: "bold", fontSize: 10 }
           },
           {
             content:
-              `Quote No : ${quoteNo}\nDate : ${dateStr}\nValidity : ${validStr}`
+              `Quote No : ${quotation.quotation_number}\n` +
+              `Date : ${new Date().toLocaleDateString()}\n` +
+              `Validity : 30 Days`,
+            styles: { fontSize: 10, fontStyle: "bold" }
           }
         ]],
         theme: "grid",
         margin: { left: margin, right: margin }
       })
 
-      currentY = (doc as any).lastAutoTable.finalY + 10
+      currentY = (doc as any).lastAutoTable.finalY + 12
 
       isFirstPage = false
     }
 
-    ensureSpace(20)
-
+    doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
-
     doc.setTextColor(0, 82, 156)
 
     doc.text(
@@ -231,66 +218,59 @@ export const generateQuotationPDF = async ({
 
     currentY += 8
 
+    doc.setTextColor(0)
     doc.setFontSize(12)
 
-    doc.setTextColor(0)
+    doc.text(`For ${item.name}`, pageWidth / 2, currentY, { align: "center" })
 
-    doc.text(
-      `For ${item.name}`,
-      pageWidth / 2,
-      currentY,
-      { align: "center" }
-    )
-
-    currentY += 10
+    currentY += 12
 
     doc.setFontSize(10)
-
+    doc.setFont("helvetica", "bold")
     doc.text("Description:", margin, currentY)
 
     currentY += 6
 
-    const splitDesc = doc.splitTextToSize(
-      item.description || "",
-      pageWidth - margin * 2
-    )
-
-    ensureSpace(splitDesc.length * 5)
-
+    doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
 
-    doc.text(splitDesc, margin, currentY)
+    const desc = doc.splitTextToSize(
+      item.description || "",
+      pageWidth - (margin * 2)
+    )
 
-    currentY += splitDesc.length * 5 + 8
+    doc.text(desc, margin, currentY)
 
-    const image = itemImages[item.id]
+    currentY += desc.length * 5 + 5
 
-    const format = item.image_format || "wide"
+    const imageData = itemImages[item.id]
 
-    // FORMAT 1 (WIDE IMAGE)
-    if (format === "wide" && image) {
+    if (item.image_format === "wide" && imageData) {
 
-      const maxWidth = pageWidth - margin * 2
+      ensurePageSpace(85, logoBase64)
 
-      const ratio = maxWidth / image.width
+      const maxWidth = pageWidth - (margin * 2) - 40
+      const ratio = maxWidth / imageData.width
 
-      const w = maxWidth
+      const imgWidth = imageData.width * ratio
+      const imgHeight = imageData.height * ratio
 
-      const h = image.height * ratio
+      const x = margin + 20
 
-      ensureSpace(h + 10)
+      doc.addImage(
+        imageData.base64,
+        "JPEG",
+        x,
+        currentY,
+        imgWidth,
+        imgHeight
+      )
 
-      doc.addImage(image.base64, "JPEG", margin, currentY, w, h)
-
-      currentY += h + 10
+      currentY += imgHeight + 12
     }
 
-    // FEATURES
-    const features = item.features || []
-
-    doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
-
+    doc.setFontSize(10)
     doc.text("FEATURES:", margin, currentY)
 
     currentY += 6
@@ -298,58 +278,54 @@ export const generateQuotationPDF = async ({
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
 
-    if (format === "tall" && image) {
+    const featureWidth =
+      item.image_format === "tall"
+        ? (pageWidth - margin * 2) * 0.55
+        : pageWidth - margin * 2
 
-      const imgWidth = 60
-      const ratio = imgWidth / image.width
-      const imgHeight = image.height * ratio
+    const featureStartY = currentY
 
-      const imgX = pageWidth - margin - imgWidth
+    item.features?.forEach((f: string) => {
 
-      doc.addImage(image.base64, "JPEG", imgX, currentY, imgWidth, imgHeight)
+      const split = doc.splitTextToSize(f, featureWidth)
 
-      const featureWidth = pageWidth - margin * 2 - imgWidth - 5
+      ensurePageSpace(split.length * 5, logoBase64)
 
-      const startY = currentY
+      doc.text("•", margin, currentY)
+      doc.text(split, margin + 5, currentY)
 
-      for (const f of features) {
+      currentY += split.length * 5
+    })
 
-        const lines = doc.splitTextToSize(f, featureWidth)
+    if (item.image_format === "tall" && imageData) {
 
-        ensureSpace(lines.length * 5)
+      const imgWidth = (pageWidth - margin * 2) * 0.35
 
-        doc.text("•", margin, currentY)
-        doc.text(lines, margin + 5, currentY)
+      const ratio = imgWidth / imageData.width
 
-        currentY += lines.length * 5
-      }
+      const imgHeight = imageData.height * ratio
 
-      currentY = Math.max(currentY, startY + imgHeight) + 10
+      const x = pageWidth - margin - imgWidth
 
-    } else {
+      doc.addImage(
+        imageData.base64,
+        "JPEG",
+        x,
+        featureStartY,
+        imgWidth,
+        imgHeight
+      )
 
-      for (const f of features) {
-
-        const lines = doc.splitTextToSize(f, pageWidth - margin * 2)
-
-        ensureSpace(lines.length * 5)
-
-        doc.text("•", margin, currentY)
-        doc.text(lines, margin + 5, currentY)
-
-        currentY += lines.length * 5
-      }
-
-      currentY += 10
+      currentY = Math.max(currentY, featureStartY + imgHeight + 10)
     }
 
-    // SPECIFICATIONS FIX
     if (item.specs?.length) {
 
-      ensureSpace(20)
+      ensurePageSpace(20, logoBase64)
 
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
+      doc.setTextColor(0)
 
       doc.text("Specifications:", margin, currentY)
 
@@ -358,30 +334,41 @@ export const generateQuotationPDF = async ({
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
 
-      for (const s of item.specs) {
+      item.specs.forEach((s: any) => {
 
-        const line = `${s.key}: ${s.value}`
-
-        const lines = doc.splitTextToSize(
-          line,
-          pageWidth - margin * 2
-        )
-
-        ensureSpace(lines.length * 5)
+        ensurePageSpace(10, logoBase64)
 
         doc.text("•", margin, currentY)
+        doc.text(`${s.key}: ${s.value}`, margin + 5, currentY)
 
-        doc.text(lines, margin + 5, currentY)
-
-        currentY += lines.length * 5
-      }
-
-      currentY += 10
+        currentY += 6
+      })
     }
 
-  }
+    ensurePageSpace(30, logoBase64)
 
-  // TERMS PAGE
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(11)
+    doc.text("Commercial Offer:", margin, currentY)
+
+    currentY += 6
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [["S.No", "Description", "Qty", `Price (${currencyLabel})`]],
+      body: [[
+        "01",
+        item.name,
+        "1",
+        `${currencySymbol} ${item.price}`
+      ]],
+      theme: "grid",
+      margin: { left: margin, right: margin }
+    })
+
+    currentY = (doc as any).lastAutoTable.finalY + 10
+  })
+
   doc.addPage()
 
   pageNumber++
@@ -392,44 +379,19 @@ export const generateQuotationPDF = async ({
 
   currentY = 55
 
-  doc.setFontSize(12)
   doc.setFont("helvetica", "bold")
+  doc.setFontSize(12)
+  doc.setTextColor(0)
 
   doc.text("Terms And Conditions:", margin, currentY)
 
-  currentY += 10
-
-  const terms = selectedTerms || []
-
-  doc.setFontSize(9)
-  doc.setFont("helvetica", "normal")
-
-  for (const t of terms) {
-
-    const line = `${t.title}: ${t.text}`
-
-    const lines = doc.splitTextToSize(
-      line,
-      pageWidth - margin * 2
-    )
-
-    ensureSpace(lines.length * 5)
-
-    doc.text("•", margin, currentY)
-    doc.text(lines, margin + 5, currentY)
-
-    currentY += lines.length * 5 + 3
-  }
-
-  const pdfName = `${quotation.quotation_number}_Quotation.pdf`
-
-  doc.save(pdfName)
+  doc.save(`${quotation.quotation_number}_Quotation.pdf`)
 
   return doc.output("blob")
 }
 
-const getBase64ImageFromURL = (url: string) =>
-  new Promise<string>((resolve, reject) => {
+const getBase64ImageFromURL = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
 
     const img = new Image()
 
@@ -453,9 +415,10 @@ const getBase64ImageFromURL = (url: string) =>
 
     img.src = url
   })
+}
 
-const getBase64ImageWithDimensions = (url: string) =>
-  new Promise<any>((resolve, reject) => {
+const getBase64ImageWithDimensions = (url: string) => {
+  return new Promise<any>((resolve, reject) => {
 
     const img = new Image()
 
@@ -468,7 +431,9 @@ const getBase64ImageWithDimensions = (url: string) =>
       canvas.width = img.width
       canvas.height = img.height
 
-      canvas.getContext("2d")?.drawImage(img, 0, 0)
+      const ctx = canvas.getContext("2d")
+
+      ctx?.drawImage(img, 0, 0)
 
       resolve({
         base64: canvas.toDataURL("image/jpeg", 0.85),
@@ -481,3 +446,4 @@ const getBase64ImageWithDimensions = (url: string) =>
 
     img.src = url
   })
+}
