@@ -199,7 +199,7 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     doc.setFontSize(9)
     const splitDesc = doc.splitTextToSize(item.description || "", pageWidth - (margin * 2))
     
-    // Check if description itself needs a page break (unlikely to be huge, but safe to check)
+    // Check if description itself needs a page break
     if (currentY + (splitDesc.length * 5) > contentBottomLimit) {
          doc.addPage();
          drawPageBorder();
@@ -267,11 +267,10 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
     
     // --- FORMAT 2: TALL (Features Left, Image Right) ---
     else {
-      // Logic: Calculate height of features block first to see if it fits with image
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
       
-      // Calculate Feature Block Height virtually
+      // Calculate Feature Block Height virtually to prevent breaking mid-block if possible
       const featureWidth = (pageWidth - (margin * 2)) * 0.55
       let estimatedFeatureHeight = 6; // Header space
       doc.setFont("helvetica", "normal") // Switch font to calc size
@@ -311,7 +310,6 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
       let imageEndY = featureStartY;
       if (imageData?.base64) {
         const maxImgWidth = (pageWidth - (margin * 2)) * 0.40
-        // Use previously defined maxImgHeight
         const ratio = Math.min(maxImgWidth / imageData.width, maxImgHeight / imageData.height)
         const newWidth = imageData.width * ratio
         const newHeight = imageData.height * ratio
@@ -321,31 +319,40 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
         imageEndY = featureStartY + newHeight + 10
       }
       
-      // Set currentY to the lowest point of either column to avoid overlap
-      currentY = Math.max(featuresEndY, imageEndY) + 5
+      // Strictly set currentY to the lowest point of either column to ensure Specs draw safely below
+      currentY = Math.max(featuresEndY, imageEndY) + 10
     }
 
-    // Specification Section
+    // --- Specification Section (Applies to both formats) ---
     if (item.specs && item.specs.length > 0) {
-      checkAddPage(20) // Ensure header fits
+      checkAddPage(20) // Ensure there is room for the title and at least one spec
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
       doc.text("Specifications:", margin, currentY)
-      currentY += 6
+      currentY += 7
+      
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
 
       item.specs.forEach((s: { key: string; value: string }) => {
-        const specLine = `${s.key}: ${s.value}`
-        // Approximate height check
-        checkAddPage(6)
+        const keyText = s.key || "";
+        const valText = (s.value || "").startsWith(":") ? s.value : `: ${s.value}`;
         
-        doc.text("•", margin + 3, currentY)
+        // Wrap text to avoid horizontal overlap and calculate exact row height
+        const splitKey = doc.splitTextToSize(keyText, 45); 
+        const splitVal = doc.splitTextToSize(valText, pageWidth - margin - 55 - margin);
+        
+        const rowHeight = Math.max(splitKey.length, splitVal.length) * 5;
+        checkAddPage(rowHeight + 2); // Prevent overlapping the footer
+        
         doc.setFont("helvetica", "bold")
-        doc.text(s.key, margin + 8, currentY)
+        doc.text("•", margin + 3, currentY)
+        doc.text(splitKey, margin + 8, currentY)
+        
         doc.setFont("helvetica", "normal")
-        doc.text(s.value.startsWith(":") ? s.value : `: ${s.value}`, margin + 55, currentY)
-        currentY += 5
+        doc.text(splitVal, margin + 55, currentY)
+        
+        currentY += rowHeight;
       })
       currentY += 5
     }
