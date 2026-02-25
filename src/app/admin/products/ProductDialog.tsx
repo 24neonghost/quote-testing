@@ -147,7 +147,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl gap-0 p-0 overflow-hidden rounded-2xl border-none bg-white shadow-2xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] w-[95vw] gap-0 p-0 overflow-hidden rounded-2xl border-none bg-white shadow-2xl h-[95vh] flex flex-col">
         <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex-shrink-0">
           <DialogHeader>
             <DialogTitle className="text-xl font-black tracking-tight text-black">
@@ -165,7 +165,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-shrink-0">
                 <Label className="mb-3 block text-xs font-bold uppercase tracking-wider text-gray-400">Product Image</Label>
-                <div className="group relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 transition-all hover:border-gray-300">
+                <div className="group relative flex h-52 w-52 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 transition-all hover:border-gray-300">
                   {previewUrl ? (
                     <img src={previewUrl} alt="Preview" className="h-full w-full object-contain p-2" />
                   ) : (
@@ -200,7 +200,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
                       defaultValue={product?.name}
                       placeholder="e.g. Laminar Air Flow"
                       required
-                      className="h-10 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0"
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
                     />
                   </div>
                   <div className="space-y-2">
@@ -210,7 +210,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
                       name="category"
                       defaultValue={product?.category}
                       placeholder="e.g. Cleanroom Equipment"
-                      className="h-10 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0"
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
                     />
                   </div>
                 </div>
@@ -223,13 +223,13 @@ export default function ProductDialog({ product }: { product?: Product }) {
                       name="sku"
                       defaultValue={product?.sku}
                       placeholder="e.g. SKU-123"
-                      className="h-10 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0"
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="image_format" className="text-xs font-bold text-gray-700">Display Format</Label>
                     <Select name="image_format" defaultValue={product?.image_format || 'wide'}>
-                      <SelectTrigger className="h-10 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0">
+                      <SelectTrigger className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base">
                         <SelectValue placeholder="Select format" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-gray-100 shadow-xl">
@@ -247,7 +247,7 @@ export default function ProductDialog({ product }: { product?: Product }) {
                     name="description"
                     defaultValue={product?.description}
                     placeholder="Product description..."
-                    className="min-h-[80px] rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 resize-none"
+                    className="min-h-[180px] rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 resize-y text-base"
                   />
                 </div>
 
@@ -264,13 +264,13 @@ export default function ProductDialog({ product }: { product?: Product }) {
                         defaultValue={product?.price}
                         placeholder="0.00"
                         required
-                        className="h-10 rounded-xl border-gray-200 bg-gray-50/50 pl-7 font-bold focus:bg-white focus:ring-0"
+                        className="h-12 rounded-xl border-gray-200 bg-gray-50/50 pl-7 font-bold focus:bg-white focus:ring-0 text-base"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="active" className="text-xs font-bold text-gray-700">Status</Label>
-                    <div className="flex h-10 items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4">
+                    <div className="flex h-12 items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4">
                       <input
                         type="checkbox"
                         id="active"
@@ -299,15 +299,15 @@ export default function ProductDialog({ product }: { product?: Product }) {
                           placeholder="Feature/Key"
                           value={spec.key}
                           onChange={(e) => updateSpec(index, 'key', e.target.value)}
-                          className="h-9 text-xs bg-gray-50/50"
+                          className="h-11 text-sm bg-gray-50/50"
                         />
                         <Input
                           placeholder="Value"
                           value={spec.value}
                           onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                          className="h-9 text-xs bg-gray-50/50"
+                          className="h-11 text-sm bg-gray-50/50"
                         />
-                        <Button type="button" onClick={() => removeSpec(index)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500">
+                        <Button type="button" onClick={() => removeSpec(index)} variant="ghost" size="icon" className="h-11 w-11 text-gray-400 hover:text-red-500">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
