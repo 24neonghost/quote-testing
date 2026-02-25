@@ -271,8 +271,8 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
       doc.setFont("helvetica", "bold")
       doc.setFontSize(10)
       
-      // Calculate Feature Block Height virtually
-      const featureWidth = (pageWidth - (margin * 2)) * 0.55
+      // Calculate Feature Block Height virtually. Reduced width to 50% to prevent overlap.
+      const featureWidth = (pageWidth - (margin * 2)) * 0.50 
       let estimatedFeatureHeight = 6; // Header space
       doc.setFont("helvetica", "normal") // Switch font to calc size
       doc.setFontSize(9)
@@ -311,12 +311,13 @@ export const generateQuotationPDF = async ({ quotation, items, settings, user, s
       let imageEndY = featureStartY;
       if (imageData?.base64) {
         const maxImgWidth = (pageWidth - (margin * 2)) * 0.40
-        // Use previously defined maxImgHeight
         const ratio = Math.min(maxImgWidth / imageData.width, maxImgHeight / imageData.height)
         const newWidth = imageData.width * ratio
         const newHeight = imageData.height * ratio
 
-        const imgX = margin + featureWidth + 5 + (maxImgWidth - newWidth) / 2
+        // Push the image directly to the right margin to maximize the center gap
+        const imgX = pageWidth - margin - newWidth
+        
         doc.addImage(imageData.base64, "JPEG", imgX, featureStartY, newWidth, newHeight)
         imageEndY = featureStartY + newHeight + 10
       }
