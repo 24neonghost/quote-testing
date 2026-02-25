@@ -1,19 +1,6 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import { Plus, Search, Edit2, Trash2, Power, PowerOff, Upload, X } from "lucide-react"
-import { toast } from "sonner"
-import Image from "next/image"
-
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -22,10 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Plus, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react'
+import { upsertProduct } from './actions'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import {
   Select,
   SelectContent,
@@ -33,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createClient } from "@/lib/supabase/client"
-
-interface Addon {
-  name: string
-  price: number
-  description?: string
-  active?: boolean
-}
 
 interface Spec {
   key: string
@@ -55,553 +39,314 @@ interface Product {
   tax_percent: number
   image_url: string | null
   active: boolean
-  category: string
-  sku: string
-  addons: Addon[]
-  specs?: Spec[]
-  features?: string[]
-  created_at: string
   image_format?: 'wide' | 'tall'
+  sku?: string
+  category?: string
+  specs?: Spec[]
 }
 
-interface Category {
-  id: string
-  name: string
-}
-
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [uploading, setUploading] = useState(false)
-
-  const [formData, setFormData] = useState<Partial<Product>>({
-    name: "",
-    description: "",
-    price: 0,
-    tax_percent: 18,
-    active: true,
-    image_url: null,
-    category: "",
-    sku: "",
-    addons: [],
-    specs: [],
-    features: [],
-    image_format: "wide",
-  })
+export default function ProductDialog({ product }: { product?: Product }) {
+  const [open, setOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(product?.image_url || null)
+  const [specs, setSpecs] = useState<Spec[]>(product?.specs || [])
 
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      // Optimized: Parallel fetching with minimal payload
-      const [prodRes, catRes] = await Promise.all([
-        supabase.from("products").select("*").order("created_at", { ascending: false }),
-        supabase.from("categories").select("id, name").order("name")
-      ])
-
-      if (prodRes.error) toast.error(prodRes.error.message)
-      else setProducts(prodRes.data || [])
-
-      if (catRes.error) toast.error(catRes.error.message)
-      else setCategories(catRes.data || [])
-    } catch (err: any) {
-      toast.error("Failed to load data")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSave = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    try {
-      const dataToSave = {
-        ...formData,
-        price: Number(formData.price),
-        tax_percent: Number(formData.tax_percent),
-      }
+    setIsLoading(true)
 
-      if (selectedProduct) {
-        const { error } = await supabase
-          .from("products")
-          .update(dataToSave)
-          .eq("id", selectedProduct.id)
-        if (error) throw error
-        toast.success("Product updated")
-      } else {
-        const { error } = await supabase
-          .from("products")
-          .insert(dataToSave)
-        if (error) throw error
-        toast.success("Product created")
-      }
-      setIsDialogOpen(false)
-      fetchData()
-      resetForm()
-    } catch (err: any) {
-      toast.error(err.message)
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
+    // Ensure ID is passed for updates
+    if (product?.id) {
+      formData.append('id', product.id)
     }
-  }
 
-  const handleToggleStatus = async (product: Product) => {
-    try {
-      const { error } = await supabase
-        .from("products")
-        .update({ active: !product.active })
-        .eq("id", product.id)
-      if (error) throw error
-      toast.success(`Product ${product.active ? "deactivated" : "activated"}`)
-      fetchData()
-    } catch (err: any) {
-      toast.error(err.message)
-    }
-  }
+    // Client-side image upload
+    const imageInput = form.querySelector('input[type="file"]') as HTMLInputElement
+    const file = imageInput?.files?.[0]
+    let imageUrl = product?.image_url
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure?")) return
-    try {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id)
-      if (error) throw error
-      toast.success("Product deleted")
-      fetchData()
-    } catch (err: any) {
-      toast.error(err.message)
-    }
-  }
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const fileExt = file.name.split(".").pop()
+    if (file) {
+      const fileExt = file.name.split('.').pop()
       const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `product-images/${fileName}`
+
       const { error: uploadError } = await supabase.storage
-        .from("products")
-        .upload(fileName, file)
-      if (uploadError) throw uploadError
-      const { data: { publicUrl } } = supabase.storage.from("products").getPublicUrl(fileName)
-      setFormData({ ...formData, image_url: publicUrl })
-      toast.success("Image uploaded")
-    } catch (err: any) {
-      toast.error(err.message)
+        .from('products')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        toast.error("Image upload failed: " + uploadError.message)
+        setIsLoading(false)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath)
+
+      imageUrl = publicUrl
+    }
+
+    if (imageUrl) {
+      formData.set('image_url', imageUrl)
+    }
+
+    // Add specs as JSON string
+    formData.set('specs', JSON.stringify(specs))
+    formData.delete('image') // Don't send file to server action
+
+    try {
+      const result = await upsertProduct(formData)
+
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Product ${product ? 'updated' : 'created'} successfully`)
+        setOpen(false)
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error("Something went wrong. Please try again.")
     } finally {
-      setUploading(false)
+      setIsLoading(false)
     }
   }
 
-  const addAddon = () => {
-    setFormData({
-      ...formData,
-      addons: [...(formData.addons || []), { name: "", price: 0, active: true }]
-    })
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setPreviewUrl(url)
+    }
   }
 
-  const removeAddon = (index: number) => {
-    const next = [...(formData.addons || [])]
-    next.splice(index, 1)
-    setFormData({ ...formData, addons: next })
+  const addSpec = () => setSpecs([...specs, { key: '', value: '' }])
+  const removeSpec = (index: number) => setSpecs(specs.filter((_, i) => i !== index))
+  const updateSpec = (index: number, field: keyof Spec, value: string) => {
+    const newSpecs = [...specs]
+    newSpecs[index][field] = value
+    setSpecs(newSpecs)
   }
-
-  const updateAddon = (index: number, updates: Partial<Addon>) => {
-    const next = [...(formData.addons || [])]
-    next[index] = { ...next[index], ...updates }
-    setFormData({ ...formData, addons: next })
-  }
-
-  const addSpec = () => {
-    setFormData({
-      ...formData,
-      specs: [...(formData.specs || []), { key: "", value: "" }]
-    })
-  }
-
-  const removeSpec = (index: number) => {
-    const next = [...(formData.specs || [])]
-    next.splice(index, 1)
-    setFormData({ ...formData, specs: next })
-  }
-
-  const updateSpec = (index: number, updates: Partial<Spec>) => {
-    const next = [...(formData.specs || [])]
-    next[index] = { ...next[index], ...updates }
-    setFormData({ ...formData, specs: next })
-  }
-
-  const addFeature = () => {
-    setFormData({
-      ...formData,
-      features: [...(formData.features || []), ""]
-    })
-  }
-
-  const removeFeature = (index: number) => {
-    const next = [...(formData.features || [])]
-    next.splice(index, 1)
-    setFormData({ ...formData, features: next })
-  }
-
-  const updateFeature = (index: number, value: string) => {
-    const next = [...(formData.features || [])]
-    next[index] = value
-    setFormData({ ...formData, features: next })
-  }
-
-  const resetForm = () => {
-    setSelectedProduct(null)
-    setFormData({
-      name: "",
-      description: "",
-      price: 0,
-      tax_percent: 18,
-      active: true,
-      image_url: null,
-      category: "",
-      sku: "",
-      addons: [],
-      specs: [],
-      features: [],
-      image_format: "wide",
-    })
-  }
-
-  const filteredProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.category?.toLowerCase().includes(search.toLowerCase())
-  )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground">Manage your catalog with categories and addons.</p>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {product ? (
+          <Button variant="ghost" size="sm" className="h-8 w-full justify-start px-2 font-medium text-gray-600 hover:text-black hover:bg-gray-50">
+            Edit
+          </Button>
+        ) : (
+          <Button className="h-10 gap-2 rounded-xl bg-black px-4 font-bold text-white hover:bg-gray-900 shadow-lg shadow-black/20 transition-all">
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-w-[95vw] w-[95vw] gap-0 p-0 overflow-hidden rounded-2xl border-none bg-white shadow-2xl h-[95vh] flex flex-col">
+        <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex-shrink-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black tracking-tight text-black">
+              {product ? 'Edit Product' : 'New Product'}
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium text-gray-500">
+              {product ? 'Update product details and specifications' : 'Add a new product to your catalog'}
+            </DialogDescription>
+          </DialogHeader>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open)
-          if (!open) resetForm()
-        }}>
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black/90">
-              <Plus className="h-4 w-4" />
-              Add Product
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{selectedProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-                <DialogDescription>Fill in the product details below.</DialogDescription>
-              </DialogHeader>
 
-              <div className="grid gap-6 md:gap-8 py-4 md:grid-cols-2">
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Basic Info</h3>
-                    <div className="space-y-2">
-                      <Label>Product Name</Label>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-grow overflow-hidden">
+          <div className="flex-grow overflow-y-auto p-6 space-y-8">
+            {/* Image Section */}
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div className="flex-shrink-0">
+                <Label className="mb-3 block text-xs font-bold uppercase tracking-wider text-gray-400">Product Image</Label>
+                <div className="group relative flex h-52 w-52 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 transition-all hover:border-gray-300">
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="Preview" className="h-full w-full object-contain p-2" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                      <ImageIcon className="h-8 w-8" />
+                      <span className="text-[10px] font-bold uppercase">No Image</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Label htmlFor="image-upload" className="cursor-pointer rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-black hover:bg-gray-100">
+                      Change
+                    </Label>
+                  </div>
+                </div>
+                <Input
+                  id="image-upload"
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+              </div>
+
+              <div className="flex-1 space-y-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-xs font-bold text-gray-700">Product Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={product?.name}
+                      placeholder="e.g. Laminar Air Flow"
+                      required
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category" className="text-xs font-bold text-gray-700">Category</Label>
+                    <Input
+                      id="category"
+                      name="category"
+                      defaultValue={product?.category}
+                      placeholder="e.g. Cleanroom Equipment"
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="sku" className="text-xs font-bold text-gray-700">SKU</Label>
+                    <Input
+                      id="sku"
+                      name="sku"
+                      defaultValue={product?.sku}
+                      placeholder="e.g. SKU-123"
+                      className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="image_format" className="text-xs font-bold text-gray-700">Display Format</Label>
+                    <Select name="image_format" defaultValue={product?.image_format || 'wide'}>
+                      <SelectTrigger className="h-12 rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 text-base">
+                        <SelectValue placeholder="Select format" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                        <SelectItem value="wide" className="font-medium">Wide (Standard)</SelectItem>
+                        <SelectItem value="tall" className="font-medium">Tall (Side-by-side)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-xs font-bold text-gray-700">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={product?.description}
+                    placeholder="Product description..."
+                    className="min-h-[180px] rounded-xl border-gray-200 bg-gray-50/50 font-medium focus:bg-white focus:ring-0 resize-y text-base"
+                  />
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="price" className="text-xs font-bold text-gray-700">Base Price (₹)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
                       <Input
+                        id="price"
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        defaultValue={product?.price}
+                        placeholder="0.00"
                         required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="h-12 rounded-xl border-gray-200 bg-gray-50/50 pl-7 font-bold focus:bg-white focus:ring-0 text-base"
                       />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Select
-                          value={formData.category}
-                          onValueChange={(v) => setFormData({ ...formData, category: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map(c => (
-                              <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>SKU</Label>
-                        <Input
-                          value={formData.sku}
-                          onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        rows={3}
-                        value={formData.description || ""}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Base Price</Label>
-                        <Input
-                          type="number"
-                          required
-                          value={formData.price}
-                          onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tax %</Label>
-                        <Input
-                          type="number"
-                          required
-                          value={formData.tax_percent}
-                          onChange={(e) => setFormData({ ...formData, tax_percent: parseFloat(e.target.value) })}
-                        />
-                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Add-ons</h3>
-                      <button type="button" onClick={addAddon} className="text-xs font-bold text-black hover:underline flex items-center gap-1">
-                        <Plus className="h-3 w-3" /> Add
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {formData.addons?.map((addon, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <Input
-                            placeholder="Name"
-                            className="flex-1"
-                            value={addon.name}
-                            onChange={(e) => updateAddon(i, { name: e.target.value })}
-                          />
-                          <Input
-                            type="number"
-                            placeholder="Price"
-                            className="w-24"
-                            value={addon.price}
-                            onChange={(e) => updateAddon(i, { price: parseFloat(e.target.value) || 0 })}
-                          />
-                          <button type="button" onClick={() => removeAddon(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-md">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
+                  <div className="space-y-2">
+                    <Label htmlFor="active" className="text-xs font-bold text-gray-700">Status</Label>
+                    <div className="flex h-12 items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/50 px-4">
+                      <input
+                        type="checkbox"
+                        id="active"
+                        name="active"
+                        value="true"
+                        defaultChecked={product ? product.active : true}
+                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                      />
+                      <Label htmlFor="active" className="text-sm font-bold text-gray-600 cursor-pointer">Active Product</Label>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Media</h3>
-                    <div className="relative aspect-video w-full overflow-hidden rounded-xl border bg-gray-50">
-                      {formData.image_url ? (
-                        <Image src={formData.image_url} alt="Product" fill className="object-contain p-4" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">No Image</div>
-                      )}
-                    </div>
-                    <Label
-                      htmlFor="image-upload"
-                      className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed py-4 text-sm font-medium hover:bg-gray-50 transition-colors"
-                    >
-                      <Upload className="h-4 w-4" />
-                      {uploading ? "Uploading..." : "Upload High-Quality Image"}
-                      <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    </Label>
-                    <div className="space-y-2">
-                      <Label>PDF Image Layout</Label>
-                      <Select
-                        value={formData.image_format || 'wide'}
-                        onValueChange={(v: 'wide' | 'tall') => setFormData({ ...formData, image_format: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Layout" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="wide">Format 1 - Wide (Image below description)</SelectItem>
-                          <SelectItem value="tall">Format 2 - Tall (Image beside features)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                {/* Specs Section */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-gray-700">Specifications / Features</Label>
+                    <Button type="button" onClick={addSpec} variant="outline" size="sm" className="h-7 text-xs border-dashed gap-1">
+                      <Plus className="h-3 w-3" /> Add Spec
+                    </Button>
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Technical Specs</h3>
-                      <button type="button" onClick={addSpec} className="text-xs font-bold text-black hover:underline flex items-center gap-1">
-                        <Plus className="h-3 w-3" /> Add
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {formData.specs?.map((spec, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <Input
-                            placeholder="Label (e.g. Material)"
-                            className="flex-1"
-                            value={spec.key}
-                            onChange={(e) => updateSpec(i, { key: e.target.value })}
-                          />
-                          <Input
-                            placeholder="Value"
-                            className="flex-1"
-                            value={spec.value}
-                            onChange={(e) => updateSpec(i, { value: e.target.value })}
-                          />
-                          <button type="button" onClick={() => removeSpec(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-md">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Product Features</h3>
-                      <button type="button" onClick={addFeature} className="text-xs font-bold text-black hover:underline flex items-center gap-1">
-                        <Plus className="h-3 w-3" /> Add
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {formData.features?.map((feature, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <Input
-                            placeholder="Feature description (e.g., Microprocessor based design)"
-                            className="flex-1"
-                            value={feature}
-                            onChange={(e) => updateFeature(i, e.target.value)}
-                          />
-                          <button type="button" onClick={() => removeFeature(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-md">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="space-y-2">
+                    {specs.map((spec, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder="Feature/Key"
+                          value={spec.key}
+                          onChange={(e) => updateSpec(index, 'key', e.target.value)}
+                          className="h-11 text-sm bg-gray-50/50"
+                        />
+                        <Input
+                          placeholder="Value"
+                          value={spec.value}
+                          onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                          className="h-11 text-sm bg-gray-50/50"
+                        />
+                        <Button type="button" onClick={() => removeSpec(index)} variant="ghost" size="icon" className="h-11 w-11 text-gray-400 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    {specs.length === 0 && (
+                      <p className="text-xs text-gray-400 font-medium italic text-center py-2">No specifications added yet.</p>
+                    )}
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <DialogFooter className="mt-8 border-t pt-6">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-black px-10 py-3 text-sm font-bold text-white shadow-xl shadow-black/20 transition-all hover:bg-black/90 active:scale-95"
-                >
-                  {selectedProduct ? "Update Product" : "Create Product"}
-                </button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search products by name or category..."
-            className="pl-9 h-11"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
-                <TableHead className="w-20 px-6 whitespace-nowrap">Image</TableHead>
-                <TableHead className="whitespace-nowrap">Details</TableHead>
-                <TableHead className="whitespace-nowrap">Category</TableHead>
-                <TableHead className="whitespace-nowrap">Price</TableHead>
-                <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="text-right px-6 whitespace-nowrap">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} className="h-48 text-center font-medium text-gray-400">Fetching products...</TableCell></TableRow>
-              ) : filteredProducts.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="h-48 text-center font-medium text-gray-400">No products found.</TableCell></TableRow>
+          <div className="border-t border-gray-100 bg-gray-50/50 p-6 flex justify-end gap-3 flex-shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="h-11 rounded-xl border-gray-200 font-bold text-gray-600 hover:bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="h-11 rounded-xl bg-black px-8 font-bold text-white shadow-lg shadow-black/20 hover:bg-gray-900 transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
               ) : (
-                filteredProducts.map((p) => (
-                  <TableRow key={p.id} className="group hover:bg-gray-50/30 transition-colors">
-                    <TableCell className="px-6 py-4">
-                      <div className="relative h-14 w-14 overflow-hidden rounded-xl border bg-white p-1">
-                        {p.image_url ? (
-                          <Image src={p.image_url} alt={p.name} fill className="object-contain" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-gray-300">N/A</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-0.5">
-                        <div className="font-black text-black uppercase tracking-tight">{p.name}</div>
-                        <div className="max-w-[240px] truncate text-xs text-gray-400">{p.description}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-none font-bold uppercase text-[10px]">{p.category || "Uncategorized"}</Badge>
-                    </TableCell>
-                    <TableCell className="font-black text-black">₹{p.price.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.active ? "default" : "destructive"} className={p.active ? "bg-black text-white" : ""}>
-                        {p.active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right px-6">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedProduct(p)
-                            setFormData({
-                              ...p,
-                              addons: p.addons || [],
-                              specs: p.specs || [],
-                            })
-                            setIsDialogOpen(true)
-                          }}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(p)}
-                          className={`p-2 rounded-lg transition-colors ${p.active ? "text-red-500 hover:bg-red-50" : "text-green-500 hover:bg-green-50"}`}
-                        >
-                          {p.active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                product ? 'Save Changes' : 'Create Product'
               )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
