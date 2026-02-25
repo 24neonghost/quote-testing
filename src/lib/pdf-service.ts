@@ -11,505 +11,489 @@ interface PDFData {
   validityData?: { validityDate?: string; validityDays?: number }
 }
 
-export const generateQuotationPDF = async ({
-  quotation,
-  items,
-  settings,
-  user,
-  selectedTerms,
-  currency = 'INR',
-  validityData
-}: PDFData) => {
+export const generateQuotationPDF = async ({ quotation, items, settings, user, selectedTerms, currency = 'INR', validityData }: PDFData) => {
 
-  const doc = new jsPDF("portrait", "mm", "a4")
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  })
 
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-
   const margin = 15
-  const footerSafe = 30
+  const currencySymbol = currency === 'INR' ? 'Rs.' : '$'
+  const currencyLabel = currency === 'INR' ? 'INR' : 'USD'
 
-  const currencySymbol = currency === "INR" ? "Rs." : "$"
-  const currencyLabel = currency === "INR" ? "INR" : "USD"
-
-  let pageNumber = 1
-
-  //-----------------------------------
-  // BORDER + FOOTER
-  //-----------------------------------
-
-  const drawBorderFooter = () => {
-
+  const drawPageBorder = () => {
+    // Outer Blue Border
     doc.setDrawColor(0, 82, 156)
     doc.setLineWidth(1.2)
     doc.rect(5, 5, pageWidth - 10, pageHeight - 10)
 
+    // Inner Orange Border
     doc.setDrawColor(255, 102, 0)
     doc.setLineWidth(0.8)
     doc.rect(7, 7, pageWidth - 14, pageHeight - 14)
 
-    doc.setDrawColor(0)
+    // Footer contact box
+    doc.setDrawColor(0, 0, 0)
     doc.setLineWidth(0.3)
-
-    doc.rect(margin + 10, pageHeight - 20, pageWidth - margin * 2 - 20, 8)
-
+    doc.rect(margin + 10, pageHeight - 20, pageWidth - (margin * 2) - 20, 8)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
-
-    doc.text(
-      "Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365",
-      pageWidth / 2,
-      pageHeight - 14.5,
-      { align: "center" }
-    )
-
+    doc.setTextColor(0)
+    doc.text("Write us: info@raiselabequip.com / sales@raiselabequip.com | Contact: +91 91777 70365", pageWidth / 2, pageHeight - 14.5, { align: "center" })
   }
 
-  //-----------------------------------
-  // HEADER
-  //-----------------------------------
-
-  const drawHeader = (logo: string) => {
-
-    if (logo)
-      doc.addImage(logo, "JPEG", margin, 12, 70, 25)
+  const drawHeader = (logoBase64: string) => {
+    if (logoBase64) {
+      doc.addImage(logoBase64, "JPEG", margin, 12, 70, 25)
+    }
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(11)
     doc.setTextColor(0, 82, 156)
-
-    doc.text(
-      "RAISE LAB EQUIPMENT",
-      pageWidth - margin,
-      18,
-      { align: "right" }
-    )
+    doc.text("RAISE LAB EQUIPMENT", pageWidth - margin, 18, { align: "right" })
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(60)
-
-    doc.text(
-      "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040",
-      pageWidth - margin,
-      24,
-      { align: "right", lineHeightFactor: 1.4 }
-    )
+    const address = "C-6, B1, Industrial Park, Moula Ali,\nHyderabad, Secunderabad,\nTelangana 500040"
+    doc.text(address, pageWidth - margin, 24, { align: "right", lineHeightFactor: 1.4 })
 
     doc.setDrawColor(0, 82, 156)
+    doc.setLineWidth(0.5)
     doc.line(margin, 42, pageWidth - margin, 42)
-
     doc.setDrawColor(255, 102, 0)
+    doc.setLineWidth(0.3)
     doc.line(margin, 43, pageWidth - margin, 43)
   }
 
-  //-----------------------------------
-  // PAGE NUMBER
-  //-----------------------------------
-
-  const drawPageNumber = () => {
-
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
-    doc.setTextColor(0)
-
-    doc.text(
-      `Page ${pageNumber}`,
-      pageWidth - margin,
-      pageHeight - 8,
-      { align: "right" }
-    )
-  }
-
-  //-----------------------------------
-  // NEW PAGE
-  //-----------------------------------
-
-  const newPage = (logo: string) => {
-
-    doc.addPage()
-
-    pageNumber++
-
-    drawBorderFooter()
-    drawHeader(logo)
-    drawPageNumber()
-
-    return 50
-  }
-
-  //-----------------------------------
-  // LOAD LOGO
-  //-----------------------------------
-
-  let logo = ""
-
+  // Pre-load quotation logo
+  let logoBase64 = ""
   try {
-    logo = await getBase64ImageFromURL("/quotation-logo.jpg")
-  } catch {}
+    logoBase64 = await getBase64ImageFromURL('/quotation-logo.jpg')
+  } catch (e) {
+    console.warn("Could not load quotation logo", e)
+  }
 
-  //-----------------------------------
-  // LOAD IMAGES
-  //-----------------------------------
-
-  const itemImages: any = {}
-
-  await Promise.all(
-    items.map(async item => {
-
-      if (!item.image_url) return
-
+  // Pre-load item images in parallel
+  const itemImages: Record<string, { base64: string; isWide: boolean; width: number; height: number }> = {}
+  const imagePromises = items
+    .filter(item => item.image_url)
+    .map(async (item) => {
       try {
-
-        const img = await getBase64ImageWithDimensions(item.image_url)
-
-        itemImages[item.id] = img
-
-      } catch {}
-
+        const { base64, width, height } = await getBase64ImageWithDimensions(item.image_url!)
+        const isWide = width > height * 1.3
+        itemImages[item.id] = { base64, isWide, width, height }
+      } catch (e) {
+        console.warn(`Could not load item image for ${item.id}`, e)
+      }
     })
-  )
 
-  //-----------------------------------
-  // START FIRST PAGE
-  //-----------------------------------
-
-  drawBorderFooter()
-  drawHeader(logo)
-  drawPageNumber()
+  await Promise.all(imagePromises)
 
   let currentY = 50
 
-  //-----------------------------------
-  // TO TABLE
-  //-----------------------------------
+  // Helper to dynamically check if space is available to avoid overlaps
+  const checkSpace = (requiredSpace: number) => {
+    // 25mm is reserved for the footer to prevent overlapping
+    if (currentY + requiredSpace > pageHeight - 25) {
+      doc.addPage()
+      drawPageBorder()
+      drawHeader(logoBase64)
+      currentY = 50
+    }
+  }
 
-  autoTable(doc, {
+  // Start Drawing
+  drawPageBorder()
+  drawHeader(logoBase64)
 
-    startY: currentY,
+  let isFirstPage = true
 
-    body: [[
+  items.forEach((item, index) => {
+    if (index > 0) {
+      doc.addPage()
+      drawPageBorder()
+      drawHeader(logoBase64)
+      currentY = 50
+    }
 
-      {
-        content:
-          `To\n\n${quotation.customer_name}\n${quotation.customer_address || ""}`,
-        styles: { fontStyle: "bold", fontSize: 10 }
-      },
+    if (isFirstPage) {
+      const validityDate = validityData?.validityDate
+        ? new Date(validityData.validityDate)
+        : (quotation.validity_date
+          ? new Date(quotation.validity_date)
+          : new Date(quotation.created_at || Date.now()));
 
-      {
-        content:
-          `Quote No : ${quotation.quotation_number}
-Date : ${new Date().toLocaleDateString("en-GB").replace(/\//g, "-")}
-Validity : ${
-          validityData?.validityDate
-            ? new Date(validityData.validityDate)
-              .toLocaleDateString("en-GB")
-              .replace(/\//g, "-")
-            : ""
-          }`,
-        styles: { fontSize: 10, fontStyle: "bold" }
+      if (isNaN(validityDate.getTime())) {
+        const d = new Date(quotation.created_at || Date.now())
+        d.setDate(d.getDate() + 30)
+        validityDate.setTime(d.getTime())
       }
 
-    ]],
+      const toAddress = `To\n\n${quotation.customer_name}${quotation.customer_address ? '\n' + quotation.customer_address : ''}`;
+      const quoteNo = quotation.quotation_number;
+      const dateStr = new Date(quotation.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+      const validStr = validityDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
-    theme: "grid",
+      autoTable(doc, {
+        startY: currentY,
+        body: [[
+          {
+            content: toAddress,
+            styles: { fontStyle: "bold", fontSize: 10, valign: "top", cellPadding: 5 }
+          },
+          {
+            content: `Quote No :  ${quoteNo}\nDate         :  ${dateStr}\nValidity    :  ${validStr}`,
+            styles: { fontSize: 10, valign: "middle", cellPadding: 6, fontStyle: "bold" }
+          }
+        ]],
+        theme: "grid",
+        bodyStyles: {
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+          minCellHeight: 30,
+        },
+        columnStyles: {
+          0: { cellWidth: pageWidth - (margin * 2) - 80, halign: "left" },
+          1: { cellWidth: 80, halign: "left" }
+        },
+        margin: { top: 50, bottom: 25, left: margin, right: margin },
+        tableWidth: pageWidth - (margin * 2),
+        didDrawPage: (data) => {
+          if (data.pageNumber > 1) {
+            drawPageBorder()
+            drawHeader(logoBase64)
+          }
+        }
+      })
+      currentY = (doc as any).lastAutoTable.finalY + 12
+      isFirstPage = false
+    }
 
-    margin: { left: margin, right: margin }
-
-  })
-
-  currentY = (doc as any).lastAutoTable.finalY + 10
-
-  //-----------------------------------
-  // ITEMS LOOP
-  //-----------------------------------
-
-  for (const item of items) {
-
-    //-----------------------------------
-    // TITLE
-    //-----------------------------------
-
+    checkSpace(20)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
     doc.setTextColor(0, 82, 156)
-
     doc.text("Technical & Commercial Offer", pageWidth / 2, currentY, { align: "center" })
-
     currentY += 7
-
     doc.setFontSize(12)
     doc.setTextColor(0)
-
     doc.text(`For ${item.name}`, pageWidth / 2, currentY, { align: "center" })
-
-    currentY += 10
-
-    //-----------------------------------
-    // DESCRIPTION
-    //-----------------------------------
+    currentY += 12
 
     doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
+    checkSpace(10)
     doc.text("Description:", margin, currentY)
-
     currentY += 6
-
     doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    const splitDesc = doc.splitTextToSize(item.description || "", pageWidth - (margin * 2))
+    checkSpace(splitDesc.length * 5 + 5)
+    doc.text(splitDesc, margin, currentY)
+    currentY += (splitDesc.length * 5) + 5
 
-    const desc = doc.splitTextToSize(item.description || "", pageWidth - margin * 2)
+    const imageData = itemImages[item.id]
+    const imageFormat = item.image_format || 'wide'
+    const features = item.features && item.features.length > 0 ? item.features : [
+      "Accurate method for determining the strength of antibiotic material",
+      "Microprocessor based design",
+      "Average of Vertical diameter & Horizontal diameter of inhibited zone",
+      "Magnified image of inhibited zone is clearly visible on the prism Screen",
+      "Calibration facility with certified coins",
+      "Inbuilt thermal printer",
+      "Parallel printer port & RS 232 port for taking Test Printer Report",
+      "Password protection for Real Time Clock",
+      "Membrane Keypad for easy operation",
+      "Complies to cGMP (MOC-stainless steel -304 & Stainless Steel-316)",
+      "IQ/OQ Documentation"
+    ]
 
-    doc.text(desc, margin, currentY)
+    if (imageFormat === 'wide') {
+      if (imageData?.base64) {
+        const maxWidth = pageWidth - (margin * 2) - 10
+        const maxHeight = 80
+        const ratio = Math.min(maxWidth / imageData.width, maxHeight / imageData.height)
+        const newWidth = imageData.width * ratio
+        const newHeight = imageData.height * ratio
+        const x = (pageWidth - newWidth) / 2
 
-    currentY += desc.length * 5 + 5
+        checkSpace(newHeight + 10)
+        doc.addImage(imageData.base64, "PNG", x, currentY, newWidth, newHeight)
+        currentY += newHeight + 10
+      }
 
-    //-----------------------------------
-    // IMAGE
-    //-----------------------------------
-
-    const image = itemImages[item.id]
-
-    if (image) {
-
-      const maxWidth = pageWidth - margin * 2 - 20
-
-      const ratio = maxWidth / image.width
-
-      const w = image.width * ratio
-      const h = image.height * ratio
-
-      const x = margin + 10
-
-      doc.addImage(image.base64, "JPEG", x, currentY, w, h)
-
-      currentY += h + 10
-    }
-
-    //-----------------------------------
-    // FEATURES
-    //-----------------------------------
-
-    doc.setFont("helvetica", "bold")
-    doc.text("FEATURES:", margin, currentY)
-
-    currentY += 6
-
-    doc.setFont("helvetica", "normal")
-
-    for (const f of item.features || []) {
-
-      const lines = doc.splitTextToSize(f, pageWidth - margin * 2 - 5)
-
-      doc.text("•", margin, currentY)
-      doc.text(lines, margin + 5, currentY)
-
-      currentY += lines.length * 5
-
-      if (currentY > pageHeight - footerSafe)
-        currentY = newPage(logo)
-    }
-
-    //-----------------------------------
-    // SPECIFICATIONS
-    //-----------------------------------
-
-    if (item.specs?.length) {
-
-      currentY += 5
-
+      checkSpace(10)
       doc.setFont("helvetica", "bold")
-      doc.text("Specifications:", margin, currentY)
-
+      doc.setFontSize(10)
+      doc.text("FEATURES:", margin, currentY)
       currentY += 6
 
       doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      features.forEach((f: string) => {
+        const splitFeature = doc.splitTextToSize(f, pageWidth - (margin * 2) - 10)
+        checkSpace(splitFeature.length * 4.5 + 2)
+        doc.text("•", margin + 3, currentY)
+        doc.text(splitFeature, margin + 8, currentY)
+        currentY += splitFeature.length * 4.5
+      })
+      currentY += 5
+    } else {
+      const featureWidth = (pageWidth - (margin * 2)) * 0.55
+      const imgWidth = (pageWidth - (margin * 2)) * 0.40
 
-      for (const s of item.specs) {
+      let featuresHeight = 0
+      const splitFeatures: any[] = []
+      features.forEach((f: string) => {
+        const splitFeature = doc.splitTextToSize(f, featureWidth - 5)
+        splitFeatures.push(splitFeature)
+        featuresHeight += splitFeature.length * 4.5
+      })
 
-        const text = `${s.key}: ${s.value}`
-
-        const lines = doc.splitTextToSize(text, pageWidth - margin * 2 - 5)
-
-        doc.text("•", margin, currentY)
-        doc.text(lines, margin + 5, currentY)
-
-        currentY += lines.length * 5
-
-        if (currentY > pageHeight - footerSafe)
-          currentY = newPage(logo)
+      let imgHeight = 0
+      let newWidth = 0
+      let newHeight = 0
+      if (imageData?.base64) {
+        const maxImgHeight = 80
+        const ratio = Math.min(imgWidth / imageData.width, maxImgHeight / imageData.height)
+        newWidth = imageData.width * ratio
+        newHeight = imageData.height * ratio
+        imgHeight = newHeight
       }
+
+      const blockHeight = Math.max(featuresHeight, imgHeight) + 10
+      checkSpace(blockHeight + 10)
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.text("FEATURES:", margin, currentY)
+      currentY += 6
+      
+      const startY = currentY
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      let textY = startY
+      splitFeatures.forEach((splitFeature) => {
+        doc.text("•", margin + 3, textY)
+        doc.text(splitFeature, margin + 8, textY)
+        textY += splitFeature.length * 4.5
+      })
+
+      if (imageData?.base64) {
+        const imgX = margin + featureWidth + 5 + (imgWidth - newWidth) / 2
+        doc.addImage(imageData.base64, "JPEG", imgX, startY, newWidth, newHeight)
+      }
+
+      currentY += blockHeight
     }
 
-    //-----------------------------------
-    // COMMERCIAL TABLE
-    //-----------------------------------
+    // Specifications
+    if (item.specs && item.specs.length > 0) {
+      checkSpace(12)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.text("Specifications:", margin, currentY)
+      currentY += 6
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
 
-    currentY += 10
+      item.specs.forEach((s: { key: string; value: string }) => {
+        checkSpace(6)
+        doc.text("•", margin + 3, currentY)
+        doc.setFont("helvetica", "bold")
+        doc.text(s.key, margin + 8, currentY)
+        doc.setFont("helvetica", "normal")
+        doc.text(s.value.startsWith(":") ? s.value : `: ${s.value}`, margin + 55, currentY)
+        currentY += 5
+      })
+      currentY += 5
+    }
 
+    // Commercial Offer
+    checkSpace(35)
     doc.setFont("helvetica", "bold")
+    doc.setFontSize(11)
     doc.text("Commercial Offer:", margin, currentY)
+    currentY += 6
 
-    currentY += 5
+    const tableRows = []
+    const unitPrice = item.price + (item.selectedAddons?.reduce((s: number, a: any) => s + a.price, 0) || 0)
 
-    let desc = item.name
-
-    if (item.selectedAddons?.length) {
-
-      desc += "\n\nStandard Accessories:"
-
-      item.selectedAddons.forEach(a =>
-        desc += `\n• ${a.name}`
-      )
+    let descContent = item.name
+    if (item.selectedAddons && item.selectedAddons.length > 0) {
+      descContent += "\n\nStandard Accessories:"
+      item.selectedAddons.forEach((addon: any) => {
+        descContent += `\n• ${addon.name}`
+      })
     }
+
+    tableRows.push([
+      { content: "01", styles: { halign: "center", valign: "middle", fontSize: 10 } },
+      { content: descContent, styles: { halign: "left", valign: "middle", fontSize: 10, cellPadding: 4 } },
+      { content: "1", styles: { halign: "center", valign: "middle", fontSize: 10 } },
+      { content: `${currencySymbol} ${unitPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}/-`, styles: { halign: "center", fontStyle: "bold", valign: "middle", fontSize: 11, cellPadding: 4 } }
+    ])
 
     autoTable(doc, {
-
       startY: currentY,
-
       head: [["S.No", "Description", "Qty", `Price (${currencyLabel})`]],
-
-      body: [[
-        "01",
-        desc,
-        "1",
-        `${currencySymbol} ${item.price.toLocaleString()}/-`
-      ]],
-
+      body: tableRows,
       theme: "grid",
-
-      margin: { left: margin, right: margin }
-
+      headStyles: {
+        fillColor: [0, 82, 156],
+        textColor: [255, 255, 255],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+        fontStyle: "bold",
+        halign: "center" as "center",
+        fontSize: 10
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+        fontSize: 10,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 15, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 15, halign: "center" },
+        3: { cellWidth: 50, halign: "center" }
+      },
+      margin: { top: 50, bottom: 25, left: margin, right: margin },
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          drawPageBorder()
+          drawHeader(logoBase64)
+        }
+      }
     })
 
     currentY = (doc as any).lastAutoTable.finalY + 10
-  }
+  })
 
-  //-----------------------------------
-  // TERMS PAGE
-  //-----------------------------------
-
-  currentY = newPage(logo)
+  // Terms & Conditions Page
+  doc.addPage()
+  drawPageBorder()
+  drawHeader(logoBase64)
+  currentY = 55
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
-  doc.setTextColor(0, 82, 156)
-
   doc.text("Terms And Conditions:", margin, currentY)
-
   currentY += 10
 
-  doc.setFont("helvetica", "normal")
-  doc.setTextColor(0)
+  const defaultTerms = [
+    { title: "Packaging & Forwarding", text: "Extra As Applicable" },
+    { title: "Freight", text: "To Pay / Extra as applicable" },
+    { title: "DELIVERY", text: "We deliver the order in 3-4 Weeks from the date of receipt of purchase order" },
+    { title: "INSTALLATION", text: "Fees extra as applicable" },
+    { title: "PAYMENT", text: "100% payment at the time of proforma invoice prior to dispatch." },
+    { title: "WARRANTY", text: "One year warranty from the date of dispatch" },
+    { title: "GOVERNING LAW", text: "These Terms and Conditions and any action related hereto shall be governed, controlled, interpreted and defined by and under the laws of the State of Telangana" },
+    { title: "MODIFICATION", text: "Any modification of these Terms and Conditions shall be valid only if it is in writing and signed by the authorized representatives of both Supplier and Customer." }
+  ]
 
-  for (const t of selectedTerms || []) {
+  const termsToDisplay = selectedTerms && selectedTerms.length > 0 ? selectedTerms : defaultTerms;
 
-    const text = `${t.title}: ${t.text}`
+  termsToDisplay.forEach((t) => {
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
 
-    const lines = doc.splitTextToSize(text, pageWidth - margin * 2 - 5)
+    const cleanTitle = t.title.replace(/^\d+\.\s*/, '');
+    const fullText = `${cleanTitle}: ${t.text}`
+    const splitT = doc.splitTextToSize(fullText, pageWidth - (margin * 2) - 5)
 
+    checkSpace(splitT.length * 5 + 5)
     doc.text("•", margin, currentY)
-    doc.text(lines, margin + 5, currentY)
+    doc.text(splitT, margin + 5, currentY)
+    currentY += (splitT.length * 5) + 3
+  })
 
-    currentY += lines.length * 5
+  checkSpace(30)
+  currentY += 15
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10)
+  doc.text(`From ${settings?.company_name || "Raise Lab Equipment"}`, pageWidth - margin, currentY, { align: "right" })
+  currentY += 6
+  doc.text(user?.full_name?.toUpperCase() || "SALES TEAM", pageWidth - margin, currentY, { align: "right" })
+  currentY += 6
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  if (user?.phone) {
+    doc.text(`Contact: ${user.phone}`, pageWidth - margin, currentY, { align: "right" })
+  } else {
+    doc.text("Contact: +91 91777 70365", pageWidth - margin, currentY, { align: "right" })
   }
 
-  //-----------------------------------
-  // USER SIGN
-  //-----------------------------------
+  // Draw ALL page numbers accurately at the very end
+  const totalPdfPages = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= totalPdfPages; i++) {
+    doc.setPage(i)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(0)
+    doc.text(`Page ${i} of ${totalPdfPages}`, pageWidth - margin, pageHeight - 8, { align: "right" })
+  }
 
-  currentY += 15
-
-  doc.setFont("helvetica", "bold")
-
-  doc.text(
-    `From ${settings?.company_name || "Raise Lab Equipment"}`,
-    pageWidth - margin,
-    currentY,
-    { align: "right" }
-  )
-
-  currentY += 6
-
-  doc.text(
-    user?.full_name || "SALES TEAM",
-    pageWidth - margin,
-    currentY,
-    { align: "right" }
-  )
-
-  currentY += 6
-
-  doc.setFont("helvetica", "normal")
-
-  doc.text(
-    `Contact: ${user?.phone || "+91 91777 70365"}`,
-    pageWidth - margin,
-    currentY,
-    { align: "right" }
-  )
-
-  //-----------------------------------
-  // SAVE
-  //-----------------------------------
-
-  doc.save(`${quotation.quotation_number}_Quotation.pdf`)
+  const pdfName = `${quotation.quotation_number}_Quotation.pdf`
+  doc.save(pdfName)
 
   return doc.output("blob")
 }
 
-////////////////////////////////////////////////////////////
-
-const getBase64ImageFromURL = (url: string): Promise<string> =>
-  new Promise((resolve, reject) => {
-
+const getBase64ImageFromURL = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = "anonymous"
-
+    img.setAttribute("crossOrigin", "anonymous")
     img.onload = () => {
-
       const canvas = document.createElement("canvas")
-
-      canvas.width = img.width
-      canvas.height = img.height
-
+      const maxWidth = 800
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
       const ctx = canvas.getContext("2d")
-
-      ctx?.drawImage(img, 0, 0)
-
-      resolve(canvas.toDataURL("image/jpeg", 0.85))
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      }
+      const dataURL = canvas.toDataURL("image/jpeg", 0.85)
+      resolve(dataURL)
     }
-
-    img.onerror = reject
-
+    img.onerror = (error) => {
+      reject(error)
+    }
     img.src = url
   })
+}
 
-////////////////////////////////////////////////////////////
-
-const getBase64ImageWithDimensions = (url: string): Promise<any> =>
-  new Promise((resolve, reject) => {
-
+const getBase64ImageWithDimensions = (url: string): Promise<{ base64: string; width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = "anonymous"
-
+    img.setAttribute("crossOrigin", "anonymous")
     img.onload = () => {
-
       const canvas = document.createElement("canvas")
-
-      canvas.width = img.width
-      canvas.height = img.height
-
+      const maxWidth = 800
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
       const ctx = canvas.getContext("2d")
-
-      ctx?.drawImage(img, 0, 0)
-
-      resolve({
-        base64: canvas.toDataURL("image/jpeg", 0.85),
-        width: img.width,
-        height: img.height
-      })
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      }
+      const dataURL = canvas.toDataURL("image/jpeg", 0.85)
+      resolve({ base64: dataURL, width: img.width, height: img.height })
     }
-
-    img.onerror = reject
-
+    img.onerror = (error) => {
+      reject(error)
+    }
     img.src = url
   })
+}
