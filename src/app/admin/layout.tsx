@@ -1,37 +1,11 @@
-"use client"
-
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/admin/AdminSidebar"
-import { useAuth } from "@/lib/hooks/use-auth"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { user, loading, profile } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace("/auth/login")
-      } else if (profile?.role !== "admin") {
-        router.replace("/")
-      }
-    }
-  }, [user, loading, profile, router])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    )
-  }
-
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-gray-50/50">
