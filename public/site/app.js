@@ -1,5 +1,5 @@
 // =========================
-// app.js — Full (fixed amount spacing + layout tweaks)
+// app.js — Fixed Authentication & Persistence
 // =========================
 
 // Hardcoded credentials
@@ -30,8 +30,7 @@ const PRODUCT_CATALOG = [
         name: "Antibiotic Zone Reader (MZR)",
         price: 165000,
         currency: "INR",
-       description: "The antibiotic zone reader provides an immediate and accurate method for determining the strength of antibiotic materials by measuring the diameter of an inhibition zone in a Petri-dish. Antibiotic Zone Reader (Model : mZR) measures the diameter of the inhibition zone from 0.01 mm to 35.00 mm with an accuracy better than 0.05 mm.",
-
+        description: "The antibiotic zone reader provides an immediate and accurate method for determining the strength of antibiotic materials by measuring the diameter of an inhibition zone in a Petri-dish. Antibiotic Zone Reader (Model : mZR) measures the diameter of the inhibition zone from 0.01 mm to 35.00 mm with an accuracy better than 0.05 mm.",
         features: [
             "User Friendly Operational Procedure",
             "Economical & Cost Effective",
@@ -44,8 +43,7 @@ const PRODUCT_CATALOG = [
             "Magnification of Zone for better Accuracy in Measurement",
             "In-Built Thermal Printer available for taking hard copy of Test Report",
             "RS-232 Port for Connecting with PC or Serial Printer"
-  ],
-
+        ],
         specifications: [
             "Zone Diameter Range: 0.01 mm to 35.00 mm",
             "Accuracy: Better than 0.05 mm",
@@ -54,7 +52,7 @@ const PRODUCT_CATALOG = [
             "Illumination Lamp: LED (230V AC)",
             "Power: 230V AC / 50Hz / 1 Amp (Or) 110V AC / 60Hz / 1 Amp (on request)"
         ],
-        photo: "./Images/antibiotic-zone-reader.png",//NOT AVI
+        photo: "./Images/antibiotic-zone-reader.png",
         addons: [
             { code: "CAL-01", name: "Calibration set of 4", price: 3500 },
             { code: "PRN-01", name: "Additional thermal paper pack", price: 800 }
@@ -67,7 +65,6 @@ const PRODUCT_CATALOG = [
         price: 225000,
         currency: "INR",
         description: "Tablet hardness testers determine the force needed to break a tablet, ensuring consistent quality and performance by measuring the tablet's resistance. Our Portable Digital Hardness Tester (Model: RPHT-01P) measures the hardness of tablets size up to 40 mm in diameter.",
-
         features: [
             "Cost-Effective, Reliable and Portable",
             "4 Digit seven segments LED Display with Portable four keys membrane keypad",
@@ -80,7 +77,6 @@ const PRODUCT_CATALOG = [
             "Easy to calibrate with an Optional Calibration Kit consisting of 5Kg Certified Weight",
             "Battery Operated (Using a 9V Rechargeable Battery) as well as AC Power Adapter"
         ],
-
         specifications: [
             "Display: 4 Digit Seven Segment LED for Value",
             "Hardness Range: 3 N to 500 N",
@@ -103,7 +99,6 @@ const PRODUCT_CATALOG = [
         price: 89000,
         currency: "INR",
         description: "Tablet hardness testers determine the force needed to break a tablet, ensuring consistent quality and performance by measuring the tablet's resistance. Our Tablet Hardness Tester (Model: HTDS-1P) measures the hardness of tablets size up to 40 mm in diameter.",
-
         features: [
             "Compact design: Space-saving with an advanced microprocessor design",
             "Accurate hardness measurement providing precise measurements of tablet hardness",
@@ -117,15 +112,14 @@ const PRODUCT_CATALOG = [
             "Reporting capability with generation of various reports for enhanced data analysis",
             "Printer compatibility supporting dot matrix – Epson compatible printer",
             "IQ/OQ documentation included for quality assurance and regulatory compliance"
-  ],
-
+        ],
         specifications: [
             "Display: 20x4 LCD display",
             "Operation: Front operation panel & PC compatible keyboard",
             "Parameter: Hardness measurement range 3 N to 500 N",
             "Interfaces: Parallel printer interface (Dot Matrix LX310), PC interface using HyperTerminal through RS-232 port",
             "Power: 230V AC / 50Hz / 3 Amps (Or) 110V AC / 60Hz / 3 Amps (on request)"
-  ],
+        ],
         photo: "./Images/TABLET HARDNESS TESTER RHT-3B.png",
         addons: [
             { code: "LMS-01", name: "LIMS integration package", price: 15000 },
@@ -139,7 +133,6 @@ const PRODUCT_CATALOG = [
         price: 145000,
         currency: "INR",
         description: "Tablet hardness testers determine the force needed to break a tablet, ensuring consistent quality and performance by measuring the tablet's resistance. Our Tablet Hardness Tester (Model: HTDS-3P) measures the thickness, diameter, and hardness of tablets size up to 45 mm in diameter.",
-
         features: [
             "Accurately measures tablet thickness and diameter (accuracy 0.02 mm) and hardness",
             "Accuracy in grams of tablets",
@@ -151,8 +144,7 @@ const PRODUCT_CATALOG = [
             "Simple and easy calibration using certified 10 mm gauge block and easy hardness parameter calibration",
             "Parallel printer port & RS-232 interface for taking hard copies of test reports",
             "IQ/OQ documents included"
-         ],
-
+        ],
         specifications: [
             "Display: 20x4 LCD display with backlight",
             "Operation: Front operating panel & PC compatible keyboard",
@@ -173,7 +165,6 @@ const PRODUCT_CATALOG = [
         price: 45000,
         currency: "INR",
         description: "Ampoule Breakpoint Tester is designed to measure the breaking force required to snap open glass ampoules, ensuring consistent quality and compliance with pharmaceutical standards. The tester provides accurate and repeatable results for routine quality control testing.",
-
         features: [
             "Microprocessor based instrument for accurate ampoule breakpoint measurement",
             "Digital display for direct reading of breaking force",
@@ -183,8 +174,7 @@ const PRODUCT_CATALOG = [
             "Calibration facility using certified standard weights",
             "Robust and compact construction for laboratory use",
             "Provision for connecting printer for test report generation"
-  ],
-
+        ],
         specifications: [
             "Measurement Range: As per ampoule size",
             "Display: Digital display",
@@ -192,7 +182,7 @@ const PRODUCT_CATALOG = [
             "Calibration: Certified standard weights",
             "Application: Glass ampoule breakpoint testing",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/AMPOULE BREAKPOINT TESTER RABT-3.png",
         addons: [
             { code: "GEL-01", name: "Horizontal gel tank system", price: 18000 },
@@ -200,13 +190,12 @@ const PRODUCT_CATALOG = [
         ],
         warranty_months: 12
     },
-     {
+    {
         id: "TFT",
-        name:"Tablet Friability Tester",
+        name: "Tablet Friability Tester",
         price: 165000,
         currency: "INR",
         description: "Tablet Friability Tester is designed to determine the friability of tablets, ensuring their ability to withstand mechanical stress during handling, packaging, and transportation. It provides reliable and reproducible results for routine quality control testing in pharmaceutical laboratories.",
-
         features: [
             "Microprocessor based instrument for accurate friability testing",
             "User-friendly operation with simple control panel",
@@ -215,8 +204,7 @@ const PRODUCT_CATALOG = [
             "Automatic stop after completion of test cycle",
             "Robust and compact design suitable for laboratory environments",
             "Compliance with pharmacopoeial standards"
-  ],
-
+        ],
         specifications: [
             "Drum: Acrylic drum",
             "Speed: 25 rpm",
@@ -224,7 +212,7 @@ const PRODUCT_CATALOG = [
             "Display: Digital display",
             "Operation: Automatic",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/TABLET FRIABILITY TESTER RFT-2P.png",
         addons: [
             { code: "CAL-01", name: "Calibration set of 4", price: 3500 },
@@ -237,8 +225,7 @@ const PRODUCT_CATALOG = [
         name: "Tablet Disintegration Tester",
         price: 225000,
         currency: "INR",
-         description: "Tablet Disintegration Tester is designed to determine whether tablets or capsules disintegrate within the specified time under prescribed conditions. It is widely used in pharmaceutical quality control laboratories to ensure compliance with pharmacopoeial standards.",
-
+        description: "Tablet Disintegration Tester is designed to determine whether tablets or capsules disintegrate within the specified time under prescribed conditions. It is widely used in pharmaceutical quality control laboratories to ensure compliance with pharmacopoeial standards.",
         features: [
             "Microprocessor based instrument for reliable disintegration testing",
             "User-friendly operation with simple control panel",
@@ -247,8 +234,7 @@ const PRODUCT_CATALOG = [
             "Transparent water bath for clear observation during test",
             "Available in manual and automatic models",
             "Designed to comply with USP, IP and BP standards"
-  ],
-
+        ],
         specifications: [
             "Stations: 6 basket assembly",
             "Display: Digital display",
@@ -256,7 +242,7 @@ const PRODUCT_CATALOG = [
             "Temperature Range: Ambient to 45°C",
             "Operation: Manual / Automatic",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/AUTOMATIC TABLET DISINTEGRATION TESTER ADT-1D.png",
         addons: [
             { code: "FLR-01", name: "Fluorescence detection module", price: 45000 },
@@ -270,7 +256,6 @@ const PRODUCT_CATALOG = [
         price: 89000,
         currency: "INR",
         description: "Leak Test Apparatus is designed to detect leakage in strip packs, blister packs, bottles, and containers by creating a vacuum environment. It ensures packaging integrity and helps maintain product quality in pharmaceutical and packaging laboratories.",
-
         features: [
             "Compact and rugged construction suitable for laboratory use",
             "Transparent vacuum chamber for clear visibility during testing",
@@ -279,15 +264,14 @@ const PRODUCT_CATALOG = [
             "Suitable for testing strip packs, blister packs, bottles, and containers",
             "Ensures packaging integrity and quality assurance",
             "Low maintenance and easy to operate"
-  ],
-
+        ],
         specifications: [
             "Chamber: Transparent acrylic vacuum chamber",
             "Vacuum Gauge: Analog gauge",
             "Operation: Manual",
             "Application: Leak testing of pharmaceutical packaging",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/LEAK TEST APPARATUS RLT-2B.png",
         addons: [
             { code: "LMS-01", name: "LIMS integration package", price: 15000 },
@@ -301,7 +285,6 @@ const PRODUCT_CATALOG = [
         price: 145000,
         currency: "INR",
         description: "Leak Test Apparatus – Digital Model is designed to detect leaks in strip packs, blister packs, bottles, and containers by creating a controlled vacuum. The digital model offers improved accuracy, repeatability, and ease of operation for pharmaceutical packaging quality control.",
-
         features: [
             "Microprocessor based digital vacuum measurement",
             "Digital vacuum display for precise readings",
@@ -311,8 +294,7 @@ const PRODUCT_CATALOG = [
             "Suitable for strip packs, blister packs, bottles, and containers",
             "Improved accuracy and repeatability over manual model",
             "Low maintenance and robust construction"
-  ],
-
+        ],
         specifications: [
             "Chamber: Transparent acrylic vacuum chamber",
             "Display: Digital display",
@@ -320,7 +302,7 @@ const PRODUCT_CATALOG = [
             "Operation: Automatic",
             "Timer: Programmable digital timer",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/LEAK TEST APPARATUS RLT-2B.png",
         addons: [
             { code: "BAR-01", name: "Barcode scanner module", price: 8000 },
@@ -334,7 +316,6 @@ const PRODUCT_CATALOG = [
         price: 45000,
         currency: "INR",
         description: "Tablet Dissolution Tester is used to determine the rate at which active pharmaceutical ingredients are released from tablets or capsules into a dissolution medium under controlled conditions. It is an essential instrument for quality control and formulation development in pharmaceutical laboratories.",
-
         features: [
             "Microprocessor based dissolution testing system",
             "User-friendly operation with digital control panel",
@@ -343,8 +324,7 @@ const PRODUCT_CATALOG = [
             "Transparent water bath for clear observation",
             "Compliance with USP, IP and BP standards",
             "Robust and durable construction suitable for continuous laboratory use"
-  ],
-
+        ],
         specifications: [
             "Stations: 6 / 8 stations (model dependent)",
             "Temperature Range: Ambient to 45°C",
@@ -365,8 +345,7 @@ const PRODUCT_CATALOG = [
         name: "Tapped Density Apparatus",
         price: 165000,
         currency: "INR",
-       description: "Tapped Density Apparatus is designed to determine the tapped density of powders and granules by subjecting a measuring cylinder to controlled tapping. It is widely used in pharmaceutical, chemical, and food industries for powder flow and density analysis.",
-
+        description: "Tapped Density Apparatus is designed to determine the tapped density of powders and granules by subjecting a measuring cylinder to controlled tapping. It is widely used in pharmaceutical, chemical, and food industries for powder flow and density analysis.",
         features: [
             "Microprocessor based instrument for accurate tapped density measurement",
             "User-friendly operation with simple control panel",
@@ -375,8 +354,7 @@ const PRODUCT_CATALOG = [
             "Compatible with standard measuring cylinders",
             "Compact and robust laboratory design",
             "Compliance with pharmacopoeial standards"
-  ],
-
+        ],
         specifications: [
             "Tap Height: As per pharmacopeial standards",
             "Number of Taps: Programmable",
@@ -384,7 +362,7 @@ const PRODUCT_CATALOG = [
             "Operation: Automatic",
             "Application: Powder and granule density measurement",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
+        ],
         photo: "./Images/TAPPED DENSITY APPARATUS TD-2.png",
         addons: [
             { code: "CAL-01", name: "Calibration set of 4", price: 3500 },
@@ -398,7 +376,6 @@ const PRODUCT_CATALOG = [
         price: 225000,
         currency: "INR",
         description: "Electromagnetic Sieve Shaker is designed for efficient and reproducible particle size analysis of powders and granules. It uses electromagnetic vibration to achieve uniform sieving, making it suitable for pharmaceutical, chemical, and food laboratories.",
-
         features: [
             "Electromagnetic drive system for consistent sieving action",
             "Uniform vibration ensuring accurate particle size separation",
@@ -407,8 +384,7 @@ const PRODUCT_CATALOG = [
             "Robust and compact construction for laboratory use",
             "Low noise operation and minimal maintenance",
             "Compliance with pharmacopeial standards"
-  ],
-
+        ],
         specifications: [
             "Drive Type: Electromagnetic",
             "Operation: Automatic",
@@ -416,8 +392,8 @@ const PRODUCT_CATALOG = [
             "Sieving Motion: Vertical vibration",
             "Display: Digital display",
             "Power: 230V AC / 50Hz (Or) 110V AC / 60Hz on request"
-  ],
-        photo: "./Images/electromagnetic-sieve-shaker.png" ,// NOT AVI
+        ],
+        photo: "./Images/electromagnetic-sieve-shaker.png",
         addons: [
             { code: "CAL-01", name: "Calibration set of 4", price: 3500 },
             { code: "PRN-01", name: "Additional thermal paper pack", price: 800 }
@@ -430,7 +406,6 @@ const PRODUCT_CATALOG = [
         price: 89000,
         currency: "INR",
         description: "Scott Type Volumeter is used to determine the bulk density of powders by allowing the sample to flow through a series of baffles into a measuring cup. It is commonly used in pharmaceutical, chemical, and powder metallurgy laboratories for flow and density analysis.",
-
         features: [
             "Designed as per standard Scott volumeter principle",
             "Provides accurate and reproducible bulk density measurements",
@@ -438,16 +413,15 @@ const PRODUCT_CATALOG = [
             "Robust construction suitable for laboratory use",
             "Uniform powder flow through baffle arrangement",
             "Low maintenance and durable design"
-  ],
-
+        ],
         specifications: [
             "Application: Bulk density measurement of powders",
             "Construction: Metallic body with funnel and baffles",
             "Operation: Manual",
             "Measurement Method: Scott volumeter principle",
             "Standards: As per pharmacopeial requirements"
-  ],
-        photo: "./Images/scott-type-volumeter.png", // NOT AVI
+        ],
+        photo: "./Images/scott-type-volumeter.png",
         addons: [
             { code: "LMS-01", name: "LIMS integration package", price: 15000 },
             { code: "MOB-01", name: "Mobile stand with tablet mount", price: 5000 }
@@ -460,7 +434,6 @@ const PRODUCT_CATALOG = [
         price: 145000,
         currency: "INR",
         description: "Powder Flow Tester is designed to evaluate the flow properties of powders and granules, helping determine their suitability for processing and packaging. It is widely used in pharmaceutical and chemical laboratories for powder flowability assessment.",
-
         features: [
             "Accurate assessment of powder flow characteristics",
             "Simple and easy to operate",
@@ -468,16 +441,15 @@ const PRODUCT_CATALOG = [
             "Robust and stable laboratory construction",
             "Provides reliable and repeatable results",
             "Low maintenance design"
-  ],
-
+        ],
         specifications: [
             "Application: Powder flow property testing",
             "Operation: Manual",
             "Construction: Rigid laboratory-grade material",
             "Measurement Type: Flowability evaluation",
             "Standards: As per pharmacopeial guidelines"
-  ],
-        photo: "./Images/powder-flow-tester.png", // NOT AVI  
+        ],
+        photo: "./Images/powder-flow-tester.png",
         addons: [
             { code: "BAR-01", name: "Barcode scanner module", price: 8000 },
             { code: "TMP-01", name: "Temperature control module", price: 22000 }
@@ -546,6 +518,14 @@ let currentState = {
 // =========================
 // INIT
 document.addEventListener('DOMContentLoaded', () => {
+    // --- AUTH CHECK: Prevent logout on refresh ---
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn) {
+        switchView(appView);
+    } else {
+        switchView(loginView);
+    }
+
     loadSavedData();
     PRODUCT_CATALOG.forEach(p => {
         const b = getBase64(p.photo);
@@ -581,15 +561,26 @@ function handleLogin(e) {
     e && e.preventDefault && e.preventDefault();
     const userid = document.getElementById('userid') ? document.getElementById('userid').value : '';
     const password = document.getElementById('password') ? document.getElementById('password').value : '';
+    
     if (String(userid) === String(VALID_USERID) && String(password) === String(VALID_PASSWORD)) {
         if (loginError) loginError.textContent = '';
+        
+        // Save session
+        localStorage.setItem('isLoggedIn', 'true');
+        
         switchView(appView);
         loginForm && loginForm.reset();
     } else {
         if (loginError) loginError.textContent = 'Invalid credentials. Please try again.';
     }
 }
-function handleLogout() { switchView(loginView); }
+
+function handleLogout() { 
+    // Clear session
+    localStorage.removeItem('isLoggedIn');
+    switchView(loginView); 
+}
+
 function switchView(view) {
     if (!view) return;
     [loginView, appView, finalBillView, pastBillsView].forEach(v => { if (v) v.classList.remove('active'); });
