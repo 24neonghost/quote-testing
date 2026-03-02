@@ -7,7 +7,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/admin/:path*',
-    '/auth/:path*',
+    /*
+     * Run middleware on ALL routes except:
+     * - next static files
+     * - images
+     * - favicon
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
