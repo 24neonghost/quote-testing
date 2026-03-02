@@ -7,12 +7,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Run middleware on ALL routes except:
-     * - next static files
-     * - images
-     * - favicon
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/admin/:path*',
+    '/auth/:path*',
+    '/quotations/:path*',
   ],
 }
