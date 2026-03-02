@@ -22,9 +22,15 @@ export default function AdminLayout({
         router.replace("/")
       }
     }
-  }, [user, loading, profile])
+  }, [user, loading, profile, router])
 
-  if (loading) return null
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    )
+  }
 
   return (
     <SidebarProvider>
