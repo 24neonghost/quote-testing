@@ -760,7 +760,7 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
                                   {initialProducts.find(p => p.id === item.product_id)?.addons && initialProducts.find(p => p.id === item.product_id)?.addons!.length > 0 && (
                                     <div className="space-y-2">
                                       <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Available Addons</p>
-                                      <div className="flex flex-wrap gap-3">
+                                      <div className="flex flex-col gap-2">
                                         {initialProducts.find(p => p.id === item.product_id)?.addons?.map((addon) => (
                                           <div
                                             key={addon.name}
@@ -941,7 +941,7 @@ export default function QuotationBuilder({ initialProducts, settings, user }: Qu
                           {initialProducts.find(p => p.id === item.product_id)?.addons && (initialProducts.find(p => p.id === item.product_id)?.addons?.length || 0) > 0 && (
                             <div className="space-y-2 pt-2 border-t border-gray-50">
                               <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Addons</p>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-col gap-2">
                                 {initialProducts.find(p => p.id === item.product_id)?.addons?.map((addon) => (
                                   <div
                                     key={addon.name}
