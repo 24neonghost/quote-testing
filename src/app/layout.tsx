@@ -1,47 +1,53 @@
-import type { Metadata, Viewport } from "next";
-import { Inter } from 'next/font/google'
-import "./globals.css";
-import { Toaster } from 'sonner'
-import { AuthProvider } from '@/lib/hooks/use-auth'
+"use client"
 
-const inter = Inter({ subsets: ['latin'] })
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { AdminSidebar } from "@/components/admin/AdminSidebar"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-};
-
-export const metadata: Metadata = {
-  title: "Raise Labs - Quotation System",
-  description: "Premium quotation generator for Raise Labs",
-  openGraph: {
-    title: "Raise Labs - Quotation System",
-    description: "Create and manage professional quotations efficiently.",
-    type: "website",
-    locale: "en_US",
-    siteName: "Raise Labs Quote",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Raise Labs - Quotation System",
-    description: "Create and manage professional quotations efficiently.",
-  },
-};
-
-export default function RootLayout({
+export default function AdminLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
+  const { user, loading, profile } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.replace("/auth/login")
+      } else if (profile?.role !== "admin") {
+        router.replace("/")
+      }
+    }
+  }, [user, loading, profile, router])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    )
+  }
+
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>
-        <AuthProvider>
-          <Toaster position="top-center" richColors />
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
-  );
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-gray-50/50">
+        <AdminSidebar />
+        <main className="flex-1 min-w-0 overflow-y-auto lg:pl-64 transition-all duration-300">
+          <div className="sticky top-0 z-10 flex items-center gap-3 bg-white px-4 py-3 border-b md:hidden">
+            <SidebarTrigger />
+            <span className="font-semibold">Raise Labs Admin</span>
+          </div>
+          <div className="p-4 md:p-8">
+            <div className="mx-auto w-full max-w-7xl">
+              {children}
+            </div>
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
+  )
 }
